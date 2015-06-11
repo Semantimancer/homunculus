@@ -1,0 +1,1 @@
+Table {name = "Test", description = "This table should only be used for testing purposes.", rows = [(3,"Test (Weight 3)"),(2,"Test (Weight 2)"),(1,"Test (Weight 1)")], options = [("Option 1",["A","B","C"])]}

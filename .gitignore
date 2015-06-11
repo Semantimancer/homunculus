@@ -1,0 +1,4 @@
+*.o
+*.hi
+generatorTest.gen
+homunculus

@@ -16,6 +16,19 @@ generate t g = list !! (i `mod` length list)
         --I'll probably use the StdGen on this for the parsers
         (i,_) = random g :: (Int,StdGen)
 
+generateFile :: FilePath -> IO String
+generateFile fp = do
+  file <- readFile fp 
+  g <- getStdGen
+  return $ f (readTable file) g
+  where f Nothing _   = "Error: Failed to read "++fp
+        f (Just t) g  = generate t g
+
+readTable :: String -> Maybe Table
+readTable str = case reads str of
+  [(x,"")]  -> Just x
+  _         -> Nothing
+
 testGen :: Table
 testGen = Table { name = "Test"
                 , description = "This table should only be used for testing purposes."

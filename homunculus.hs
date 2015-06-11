@@ -21,19 +21,6 @@ main' args = case args of
                                      ,"Try 'homunculus -h' for more information."]
   where makeGeneratorTest = writeFile "generatorTest.gen" $ show testGen
 
-generateFile :: FilePath -> IO String
-generateFile fp = do
-  file <- readFile fp 
-  g <- getStdGen
-  return $ f (readTable file) g
-  where f Nothing _   = "Error: Failed to read "++fp
-        f (Just t) g  = generate t g
-
-readTable :: String -> Maybe Table
-readTable str = case reads str of
-  [(x,"")]  -> Just x
-  _         -> Nothing
-
 helpMessage :: String
 helpMessage = concat ["Usage: homunculus [OPTION]... [FILE]...\n\n"
                      ,"Homunculus Options\n"

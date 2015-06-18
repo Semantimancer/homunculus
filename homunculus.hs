@@ -16,7 +16,7 @@ main' args = case args of
   ("--help":_)  -> putStrLn helpMessage
   ("-g":[])     -> putStrLn "No generator file given!"
   ("-g":x:_)    -> putStrLn =<< generateFile x
-  ("-p":_)      -> makeGeneratorTest >> putStrLn "Generator file created successfully."
+  ("-t":_)      -> makeGeneratorTest >> putStrLn "Generator file created successfully."
   (x:_)         -> putStrLn $ concat ["Invalid option -- '",x
                                      ,"Try 'homunculus -h' for more information."]
   where makeGeneratorTest = writeFile "generatorTest.gen" $ show testGen
@@ -27,4 +27,5 @@ helpMessage = concat ["Usage: homunculus [OPTION]... [FILE]...\n\n"
                      ,"  -h or --help   Print this message.\n"
                      ,"  -g <path>      Generate a result from the table at <path>\n"
                      ,"                   (Options will be unset at this time)"
+                     ,"  -t             Create a generator for testing purposes"
                      ]

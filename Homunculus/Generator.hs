@@ -1,7 +1,8 @@
 module Homunculus.Generator where
 
-import Graphics.UI.Gtk hiding (Table)
+import Homunculus.Parser
 
+import Graphics.UI.Gtk hiding (Table)
 import System.Random
 
 data Table = Table { name, description :: String      --These will be displayed to the user
@@ -11,10 +12,11 @@ data Table = Table { name, description :: String      --These will be displayed 
   deriving (Read,Show,Eq,Ord)
 
 generate :: Table -> StdGen -> String
-generate t g = list !! (i `mod` length list)
+generate t g = case parse (script g') $ list !! (i `mod` length list) of
+  [(x,[])]  -> x
+  []        -> "Error in parse function!"
   where list = concatMap (uncurry replicate) $ rows t
-        --I'll probably use the StdGen on this for the parsers
-        (i,_) = random g :: (Int,StdGen)
+        (i,g') = random g :: (Int,StdGen)
 
 generateFile :: FilePath -> IO String
 generateFile fp = do
@@ -35,6 +37,9 @@ testGen = Table { name = "Test"
                 , rows = [(3,"Test (Weight 3)")
                          ,(2,"Test (Weight 2)")
                          ,(1,"Test (Weight 1)")
+                         ,(2,"There are 1d4+7 goblins")
+                         ,(2,"This should be 6: 2*3")
+                         ,(2,"It hails in a radius of d100*100ft")
                          ]
                 , options = [("Option 1",["A","B","C"])]
                 }

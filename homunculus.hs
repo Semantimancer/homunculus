@@ -18,9 +18,9 @@ main' args = case args of
   ("-g":[])     -> putStrLn "No generator file given!"
   ("-g":x:_)    -> putStrLn =<< generateFile x
   ("-t":_)      -> makeGeneratorTest >> putStrLn "Generator file created successfully."
-  ("-r":x:_)    -> do
+  ("-r":xs)     -> do
                    g <- newStdGen
-                   putStrLn $ fst $ head $ parse (script g) x
+                   putStrLn $ fst $ head $ parse (script g) (concat xs)
   (x:_)         -> putStrLn $ concat ["Invalid option -- '",x
                                      ,"Try 'homunculus -h' for more information."]
   where makeGeneratorTest = writeFile "generatorTest.gen" $ show testGen

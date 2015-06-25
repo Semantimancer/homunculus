@@ -171,7 +171,7 @@ script :: StdGen -> Parser String
 script g = do
   --Runs through our various script-related parsers. If all fail, just returns the first
   --character as a string.
-  x <- dice g <> getChar'
+  x <- dice g <> list g <> getChar'
   --We have to use the many function here as a safety measure. Unfortunately, this will
   --convert all of our nice Parser String functions into Parser [String] functions, so
   --when we return everything we have to concat them all back together. We use a new

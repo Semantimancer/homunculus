@@ -57,7 +57,7 @@ testGen = Table { name = "Test"
 generateFile :: FilePath -> IO String
 generateFile fp = do
   file <- readFile fp 
-  g <- getStdGen
+  g <- newStdGen
   return $ f (readTable file) g
   where f Nothing _   = "Error: Failed to read "++fp
         f (Just t) g  = generate t g

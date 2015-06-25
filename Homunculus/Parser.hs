@@ -1,9 +1,10 @@
 module Homunculus.Parser where
 
+import Control.Monad (ap)
 import Data.Char
 import System.Random
 
-import Prelude hiding (getChar)
+import Prelude hiding (getChar,until)
 
 {-
   Parsers have a second type (a) attached to them, that determines what they parse.
@@ -46,6 +47,14 @@ instance Monad Parser where
                     )
   return x = Parser (\q -> [(x,q)])
   fail _   = Parser (\_ -> [])
+
+--With the new GHC release, all Monads have to be Applicative as well. Luckily, according
+--to "Haskell/Applicative Functors" from WikiBooks, the two are so similar that we can
+--make our Parser Applicative by simply making some synonyms.
+instance Applicative Parser where
+  pure  = return
+  (<*>) = ap
+                                  
 
 --Applies the parser function to the string
 parse :: Parser a -> String -> [(a,String)]
@@ -178,7 +187,7 @@ script g = do
 
 --This is run over the output of script. The reason we don't combine the two parsers into
 --one is that the parsers used here MUST be used on the output of the parsers found in
---script. For example, we have to use ops on the output of dice.
+--script. For example, we have to use ops on the OUTPUT of dice.
 script' :: Parser String
 script' = do
   x <- ops <> getChar'
@@ -223,29 +232,23 @@ ops' = do
           '%' -> return $ x `mod` y
           _   -> fail []
 
+--Takes list-notation [X|Y|Z] and eliminates all but result from the list
+list :: StdGen -> Parser String
+list g = do
+  _ <- char '['
+  xs <- list'
+  return $ xs !! (i `mod` length xs)
+  where (i,_) = random g :: (Int,StdGen)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+--Divides the list into [String] so that list can choose one to use
+list' :: Parser [String]
+list' = do
+  --Keep pulling stuff in until you hit a | (end of entry) or ] (end of list)
+  val <- until "|]" 
+  x <- oneOf "|]"
+  --Recurses until it finds the end of the list (])
+  if x=='|'
+  then do
+    val' <- list'
+    return (val:val')
+  else return [val]

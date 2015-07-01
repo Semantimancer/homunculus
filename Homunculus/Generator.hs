@@ -18,8 +18,8 @@ data Table = Table { name, description :: String      --These will be displayed 
                    }
   deriving (Read,Show,Eq,Ord)
 
-generate :: Table -> StdGen -> String
-generate t g = case parse (script g') $ list !! (i `mod` length list) of
+generate :: Table -> [String] -> StdGen -> String
+generate t opts g = case parse (script opts g') $ list !! (i `mod` length list) of
   [(x,[])]  -> x
   []        -> "Error in parse function!"
   where list = concatMap (uncurry replicate) $ rows t
@@ -60,7 +60,7 @@ generateFile fp = do
   g <- newStdGen
   return $ f (readTable file) g
   where f Nothing _   = "Error: Failed to read "++fp
-        f (Just t) g  = generate t g
+        f (Just t) g  = generate t [] g
 
 --Clears out the box and creates the Generator UI within it
 makeGenerator :: FilePath -> VBox -> IO ()
@@ -120,7 +120,8 @@ makeGenerator dataPath box = do
   on ok buttonActivated $ do
     gen <- listStoreGetValue list =<< comboBoxGetActive combo
     g <- newStdGen
-    putStrLn $ generate gen g
+    --At some point, I'll actually add the options in. For now, it's just [].
+    putStrLn $ generate gen [] g
 
   if tables==[] 
   then do

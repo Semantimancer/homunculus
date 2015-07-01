@@ -2,7 +2,8 @@ module Homunculus.Parser where
 
 import Control.Monad (ap)
 import Data.Char
-import System.Random
+import Data.List.Utils (split)
+import System.Random hiding (split)
 
 import Prelude hiding (getChar,until)
 
@@ -167,16 +168,16 @@ int = do
 -}
 
 --This is our primary parser. All of our useful stuff should get plugged into this.
-script :: StdGen -> Parser String
-script g = do
+script :: [String] -> StdGen -> Parser String
+script opts g = do
   --Runs through our various script-related parsers. If all fail, just returns the first
   --character as a string.
-  x <- dice g <> list g <> getChar'
+  x <- dice g <> list g <> vars opts <> getChar'
   --We have to use the many function here as a safety measure. Unfortunately, this will
   --convert all of our nice Parser String functions into Parser [String] functions, so
   --when we return everything we have to concat them all back together. We use a new
   --StdGen for this recursion so that we don't keep getting the same numbers over and over.
-  xs <- many $ script g'
+  xs <- many $ script opts g'
   --Finally, before returning, this runs the result through a series of secondary parsers
   --that make any finishing touches
   return $ ret $ concat $ x:xs
@@ -252,3 +253,23 @@ list' = do
     val' <- list'
     return (val:val')
   else return [val]
+
+--Takes a set of options {A=foo|B=bar|Else=Baz} and picks the first TRUE statement
+vars :: [String] -> Parser String
+vars opts = do
+  _ <- char '{'
+  xs <- vars'
+  return $ head $ (filter (/="") (map test xs))++[""]
+  where test ("Else",y) = y
+        test (x,y) = if x `elem` opts then y else []
+
+vars' :: Parser [(String,String)]
+vars' = do
+  val <- until "|}"
+  x <- oneOf "|}"
+  if x=='|'
+  then do
+    val' <- vars'
+    return $ (makeTuple val):val'
+  else return [makeTuple val]
+  where makeTuple q = let f (x:y:_) = (x,y) in f $ split "=" q

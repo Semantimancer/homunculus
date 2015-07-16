@@ -3,6 +3,7 @@ module Homunculus.Generator where
 import Homunculus.Parser
 
 import Data.List (isInfixOf)
+import Data.Text (pack,unpack)
 import Graphics.UI.Gtk hiding (Table)
 import System.Directory
 import System.FilePath ((</>))
@@ -78,9 +79,12 @@ makeGenerator dataPath box = do
 
   list <- listStoreNew []
   combo <- comboBoxNewWithModel list
-  ok <- buttonNewWithLabel "Generate"
+  ok <- buttonNewWithLabel "Open"
   edit <- buttonNewWithLabel "Edit"
   l <- labelNew $ Just "Choose A Generator:  "
+
+  txt' <- textViewNew
+  txt <- textViewGetBuffer txt'
 
   {-
     CONSTRUCTION
@@ -90,6 +94,7 @@ makeGenerator dataPath box = do
               , containerChild := ok, boxChildPacking ok := PackNatural
               , containerChild := edit, boxChildPacking edit := PackNatural
               ]
+  set right   [ containerChild := txt' ]
   set bottom  [ containerChild := left
               , containerChild := right
               ]
@@ -119,9 +124,7 @@ makeGenerator dataPath box = do
 
   on ok buttonActivated $ do
     gen <- listStoreGetValue list =<< comboBoxGetActive combo
-    g <- newStdGen
-    --At some point, I'll actually add the options in. For now, it's just [].
-    putStrLn $ generate gen [] g
+    populateLeft gen left txt
 
   if tables==[] 
   then do
@@ -129,3 +132,48 @@ makeGenerator dataPath box = do
     set ok    [ widgetSensitive := False ]
     set combo [ widgetSensitive := False ]
   else comboBoxSetActive combo 0
+
+populateLeft :: Table -> VBox -> TextBuffer -> IO ()
+populateLeft gen box txt = do
+  mapM_ widgetDestroy =<< containerGetChildren box
+  {-
+    INITIALIZATION
+  -}
+  nameLabel <- labelNew $ Just $ name gen
+  descLabel <- labelNew $ Just $ description gen
+  optBox <- vBoxNew False 0
+  genButton <- buttonNewWithLabel "Generate"
+
+  {-
+    CONSTRUCTION
+  -}
+  opts <- mapM (\(x,y) -> do
+    row <- hBoxNew False 0
+    label <- labelNew $ Just $ x++": "
+    combo <- comboBoxNewText
+    mapM_ (comboBoxAppendText combo) (map pack y)
+
+    set row [ containerChild := label, boxChildPacking label := PackNatural
+            , containerChild := combo
+            ]
+    set optBox [ containerChild := row ]
+
+    return combo
+    ) $ options gen
+
+  set box [ containerChild := nameLabel, boxChildPacking nameLabel := PackNatural
+          , containerChild := descLabel, boxChildPacking descLabel := PackNatural
+          , containerChild := optBox, boxChildPacking optBox := PackNatural
+          ]
+  boxPackEnd box genButton PackNatural 0
+  {-
+    LOGIC
+  -}
+  on genButton buttonActivated $ do
+    g <- newStdGen
+    options <- mapM comboBoxGetActiveText opts
+    set txt [ textBufferText := generate gen (getOpts options) g ]
+  widgetShowAll box
+  where getOpts []            = []
+        getOpts (Nothing:xs)  = getOpts xs
+        getOpts ((Just x):xs) = (unpack x) : getOpts xs

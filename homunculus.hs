@@ -3,7 +3,7 @@ module Main where
 import Homunculus.Generator
 import Homunculus.Parser
 
-import Graphics.UI.Gtk hiding (Table)
+import Graphics.UI.Gtk
 import System.Directory (getAppUserDataDirectory)
 import System.Environment (getArgs)
 import System.Random
@@ -21,10 +21,10 @@ main' args = case args of
   ("-t":_)      -> makeGeneratorTest >> putStrLn "Generator file created successfully."
   ("-r":xs)     -> do
                    g <- newStdGen
-                   putStrLn $ fst $ head $ parse (script [] g) (concat xs)
+                   putStrLn $ fst $ head $ parse (script ["All"] g) (concat xs)
   (x:_)         -> putStrLn $ concat ["Invalid option -- '",x
                                      ,"Try 'homunculus -h' for more information."]
-  where makeGeneratorTest = writeFile "generatorTest.gen" $ show testGen
+  where makeGeneratorTest = writeFile "Test.gen" $ show testGen
 
 helpMessage :: String
 helpMessage = concat ["Usage: homunculus [OPTION]... [FILE]...\n\n"

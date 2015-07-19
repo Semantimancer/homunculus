@@ -34,7 +34,6 @@ generate :: Generator -> [String] -> StdGen -> String
 generate g (ts:opts) gen = case ts of
   "All" -> concatMap (\t -> concat [title t,"\n     ",(generate' (Just t) opts gen),"\n"]) 
               $ tables g
-  []    -> "Error: No Table Selected"
   x     -> generate' (getTableFromName (tables g) x) opts gen
 
 --Sub-function actually generates, based on a single Table rather than a whole Generator
@@ -91,7 +90,7 @@ generateFile fp = do
   g <- newStdGen
   return $ f (readGenerator file) g
   where f Nothing _   = "Error: Failed to read "++fp
-        f (Just t) g  = generate t [] g
+        f (Just t) g  = generate t ["All"] g
 
 --Clears out the box and creates the Generator UI within it
 makeGenerator :: FilePath -> VBox -> IO ()

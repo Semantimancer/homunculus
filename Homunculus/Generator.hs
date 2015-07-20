@@ -81,6 +81,30 @@ testGen = Generator { name = "Test"
                           }
 
 {-
+  Dummy Generators will never actually be used as a generator, but serve as a way for
+  users to send commands using the same interface as they would to select a generator
+-}
+
+dummyNewGen :: Generator
+dummyNewGen = Generator { name = "New Generator..."
+                        , description = "Dummy-Generator used to create a new one."
+                        , tables = [], options = []
+                        }
+
+dummyMakeNewGen :: Generator
+dummyMakeNewGen = Generator { name = "New Generator"
+                            , description = concat ["To finish your new generator, edit "
+                                                   ,"this one (including the name) and "
+                                                   ,"hit 'Save'"]
+                            , tables = [], options = []
+                            }
+
+dummySeparator :: Generator
+dummySeparator = Generator { name = "--------------"  
+                           , description = "", tables = [], options = [] 
+                           }
+
+{-
   IO code (mostly graphics-related)
 -}
 
@@ -101,15 +125,34 @@ makeGenerator dataPath box = do
   {-
     INITIALIZATION
   -}
-  top <- hBoxNew False 0
+  top <- hBoxNew False 2
   bottom <- frameNew
+  {-
+    CONSTRUCTION
+  -}
+  set bottom  [ containerBorderWidth := 5 ]
+  set box     [ containerChild := top, boxChildPacking top := PackNatural
+              , containerChild := bottom
+              ]
 
+  {-
+    LOGIC
+  -}
+  updateTop top dataPath bottom
+
+  widgetShowAll box
+
+updateTop :: HBox -> FilePath -> Frame -> IO ()
+updateTop top dataPath bottom = do
+  mapM_ widgetDestroy =<< containerGetChildren top
+  {-
+    INITIALIZATION
+  -}
   list <- listStoreNew []
   combo <- comboBoxNewWithModel list
   ok <- buttonNewWithLabel "Open"
   edit <- buttonNewWithLabel "Edit"
-  l <- labelNew $ Just "Choose A Generator:  "
-
+  l <- labelNew $ Just "Choose A Generator: "
   {-
     CONSTRUCTION
   -}
@@ -118,11 +161,7 @@ makeGenerator dataPath box = do
               , containerChild := ok, boxChildPacking ok := PackNatural
               , containerChild := edit, boxChildPacking edit := PackNatural
               ]
-  set bottom  [ containerBorderWidth := 5 ]
-  set box     [ containerChild := top, boxChildPacking top := PackNatural
-              , containerChild := bottom
-              ]
-
+  comboBoxSetRowSeparatorSource combo $ Just (list,\x -> x==dummySeparator)
   {-
     LOGIC
   -}
@@ -133,7 +172,7 @@ makeGenerator dataPath box = do
   let tables = maybeToList $ map readGenerator files
   
   --Put all loaded generators into a ListStore, which is used by combo
-  mapM_ (listStoreAppend list) tables
+  mapM_ (listStoreAppend list) (tables++[dummySeparator,dummyNewGen])
 
   --When the combo box is opened, the ListStore displays the names of the generators
   ren <- cellRendererTextNew
@@ -145,7 +184,17 @@ makeGenerator dataPath box = do
     runGenerator gen bottom
   on edit buttonActivated $ do
     gen <- listStoreGetValue list =<< comboBoxGetActive combo
-    editGenerator gen bottom (box,dataPath)
+    editGenerator gen bottom (top,dataPath)
+  on combo changed $ do
+    gen <- listStoreGetValue list =<< comboBoxGetActive combo
+    if gen==dummyNewGen 
+    then do
+      set ok    [ widgetSensitive := False ]
+      set edit  [ widgetSensitive := False ]
+      editGenerator dummyMakeNewGen bottom (top,dataPath) 
+    else do
+      set ok    [ widgetSensitive := True ]
+      set edit  [ widgetSensitive := True ]
 
   if tables==[] 
   then do
@@ -153,6 +202,7 @@ makeGenerator dataPath box = do
     set ok    [ widgetSensitive := False ]
     set combo [ widgetSensitive := False ]
   else comboBoxSetActive combo 0
+  widgetShowAll top
 
 runGenerator :: Generator -> Frame -> IO ()
 runGenerator gen box' = do
@@ -236,8 +286,8 @@ runGenerator gen box' = do
         getOpts (Nothing:xs)  = getOpts xs
         getOpts ((Just x):xs) = (unpack x) : getOpts xs
 
-editGenerator :: Generator -> Frame -> (VBox,FilePath) -> IO ()
-editGenerator gen box' (mainBox,dataPath) = do
+editGenerator :: Generator -> Frame -> (HBox,FilePath) -> IO ()
+editGenerator gen box' (top,dataPath) = do
   mapM_ widgetDestroy =<< containerGetChildren box'
 
   {-
@@ -261,7 +311,7 @@ editGenerator gen box' (mainBox,dataPath) = do
   nameBox <- entryNew
   nameRow <- hBoxNew True 0
 
-  descText <- labelNew $ Just "Description: "
+  descText <- labelNew $ Just "Description: \n\n\n\n\n"
   descFra <- scrolledWindowNew Nothing Nothing
   descBox <- textViewNew
   descBuf <- textViewGetBuffer descBox
@@ -345,9 +395,10 @@ editGenerator gen box' (mainBox,dataPath) = do
   onToolButtonClicked new $ makePage right ts $ Table { title = "New Table", rows = [] }
   onToolButtonClicked save $ saveGen gen nameBox descBuf ts
   onToolButtonClicked exit $ do
-    mapM_ widgetDestroy =<< containerGetChildren mainBox
-    makeGenerator dataPath mainBox
-    widgetShowAll mainBox
+    mapM_ widgetDestroy =<< containerGetChildren box'
+    updateTop top dataPath box'
+    widgetShowAll top
+    widgetShowAll box'
 
   widgetShowAll box'
 
@@ -369,6 +420,14 @@ saveGen gen nameBox descBuf ts = do
                           , tables = ts'
                           }
   dataPath <- getAppUserDataDirectory "homunculus"
+
+  --Delete the file so that if the generator's name has changed, it doesn't
+  --leave an older duplicate behind.
+  bool <- doesFileExist (dataPath </> "generators" </> (toFileName $ name gen))
+  if bool 
+  then removeFile (dataPath </> "generators" </> (toFileName $ name gen))
+  else return ()
+
   writeFile (dataPath </> "generators" </> (toFileName name')) (show newGen)
   where toFileName str = (filter isAlphaNum str)++".gen"
 

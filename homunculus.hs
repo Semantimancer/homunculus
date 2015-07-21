@@ -61,6 +61,7 @@ start = do
 
   --I plan on adding more later, so I'm going to go ahead and use mapM_
   mapM_ (menuShellAppend menu) [file]
+  mapM_ (menuShellAppend fileMenu) [quit]
 
   set file    [ menuItemSubmenu := fileMenu ]
   set vbox    [ containerChild := menu, boxChildPacking menu := PackNatural
@@ -78,7 +79,7 @@ start = do
 
   makeGenerator dataPath genBox
 
-  on quit menuItemActivate mainQuit
+  on quit menuItemActivated mainQuit
 
   on window objectDestroy mainQuit
   widgetShowAll window

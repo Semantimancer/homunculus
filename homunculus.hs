@@ -1,5 +1,6 @@
 module Main where
 
+import Homunculus.Sidebar
 import Homunculus.Generator
 import Homunculus.Parser
 
@@ -48,11 +49,14 @@ start = do
 
   menu <- menuBarNew
 
-  file <- menuItemNewWithLabel "File"
   fileMenu <- menuNew
+  file <- menuItemNewWithLabel "File"
   quit <- menuItemNewWithLabel "Quit"
 
   vbox <- vBoxNew False 0
+  hbox <- hBoxNew False 0
+
+  sideBox <- vBoxNew False 0
   genBox <- vBoxNew False 0
 
   {-
@@ -64,8 +68,11 @@ start = do
   mapM_ (menuShellAppend fileMenu) [quit]
 
   set file    [ menuItemSubmenu := fileMenu ]
+  set hbox    [ containerChild := sideBox, boxChildPacking sideBox := PackNatural
+              , containerChild := genBox 
+              ]
   set vbox    [ containerChild := menu, boxChildPacking menu := PackNatural
-              , containerChild := genBox
+              , containerChild := hbox
               ]
   set window  [ containerChild := vbox ]
 
@@ -77,11 +84,12 @@ start = do
   --versions, I can have some logic here for user-defined directories.
   dataPath <- getAppUserDataDirectory "homunculus"
 
+  makeSidebar dataPath sideBox
   makeGenerator dataPath genBox
 
   on quit menuItemActivated mainQuit
-
   on window objectDestroy mainQuit
+
   widgetShowAll window
 
   mainGUI

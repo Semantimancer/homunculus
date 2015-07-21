@@ -10,103 +10,178 @@ makeSidebar dataPath box = do
   {-
     INITIALIZATION
   -}
-  timeWidget <- makeTimeWidget
+  eventWidget <- makeEventWidget
   {-
     CONSTRUCTION
   -}
-  set box [ containerChild := timeWidget, boxChildPacking timeWidget := PackNatural ]
+  set box [ containerChild := eventWidget, boxChildPacking eventWidget := PackNatural ]
   {-
     LOGIC
   -}
   widgetShowAll box
 
-makeTimeWidget :: IO Expander
-makeTimeWidget = do
+makeEventWidget :: IO Expander
+makeEventWidget = do
   {-
     INITIALIZATION
   -}
-  frame' <- expanderNew "Time Passes!"
+  exp <- expanderNew "Time Passes!"
   frame <- frameNew
   box <- vBoxNew False 3
-
-  l'@(enc':exh':lan':tor':_) <- mapM (\x -> labelNew $ Just x)
-    ["Random Encounter!","Exhausted!","Lantern Goes Out!","Torch Goes Out!"]
-  l@(enc:exh:lan:tor:_) <- mapM (\_ -> progressBarNew ) [0..((length l')-1)]
-  le <- mapM (\_ -> eventBoxNew ) [0..((length l')-1)]
-
-  button <- buttonNewWithLabel "What Happens?"
   {-
     CONSTRUCTION
   -}
-  mapM_ (\(x,x',xe) -> do
-          row <- hSeparatorNew
-          set x   [ progressBarFraction := 1.0
-                  , progressBarText := ""
-                  ]
-          set xe  [ containerChild := x 
-                  , eventBoxVisibleWindow := False
-                  ]
-          set box [ containerChild := x', boxChildPacking x' := PackNatural
-                  , containerChild := xe, boxChildPacking xe := PackNatural
-                  , containerChild := row, boxChildPacking row := PackNatural
-                  ]
-          ) $ zip3 l l' le--[(enc,enc'),(exh,exh'),(lan,lan'),(tor,tor')]
-
-  set (l'!!0) [ widgetTooltipText := Just $ concat ["Full: Nothing around right now.\n"
-                                                   ,"Partial: You start seeing signs of "
-                                                   ,"something up ahead...\nEmpty: It's "
-                                                   ,"right under your nose!"]
-              ]
-  set (l'!!1) [ widgetTooltipText := Just $ concat ["Full: Everyone is refreshed and ready"
-                                                   ," to go!\nPartial: The party's slowing "
-                                                   ,"down a bit.\nEmpty: They collapse "
-                                                   ,"from exhaustion."]
-              ]
-  set (l'!!2) [ widgetTooltipText := Just $ concat ["Full: Plenty of oil in the lantern."
-                                                   ,"\nPartial: It's flickering a bit, but "
-                                                   ,"it's not bad.\nEmpty: It gutters, then"
-                                                   ," goes out."]
-              ]
-  set (l'!!3) [ widgetTooltipText := Just $ concat ["Full: The torch is burning brightly.\n"
-                                                   ,"Partial: It's getting a bit dim in "
-                                                   ,"here...\nEmpty: The torch dies!"]
-              ]
-  set button  [ widgetTooltipText := Just $ concat ["Hit the button while the PCs are away "
-                                                   ,"from civilization and watch their "
-                                                   ,"resources decline while they approach "
-                                                   ,"another random encounter.\n\nClick "
-                                                   ,"on the progress bars to reset them."]
-              ]
-  set box     [ containerChild := button, boxChildPacking button := PackNatural 
-              , containerBorderWidth := 5]
-  set frame   [ containerChild := box
-              , frameShadowType := ShadowEtchedOut
-              ]
-  set frame'  [ expanderExpanded := True 
-              , containerChild := frame
-              , containerBorderWidth := 5
-              ]
+  set box   [ containerBorderWidth := 5 ]
+  set frame [ containerChild := box ]
+  set exp   [ expanderExpanded := True
+            , containerChild := frame
+            , containerBorderWidth := 5
+            ]
   {-
     LOGIC
   -}
-  --When you click the "progress bar" (actually the EventWindow around the bar)
-  --you will reset the bar to full
-  mapM_ (\(x,xe) -> on xe buttonPressEvent $ tryEvent $ do
-      LeftButton <- eventButton
-      liftIO $ set x [ progressBarFraction := 1.0 ]
-    ) $ zip l le
+  makeEventWidget' box startingEvents
+  return exp
 
+makeEventWidget' :: VBox -> [Event] -> IO ()
+makeEventWidget' v events = do
+  mapM_ widgetDestroy =<< containerGetChildren v
+  {-
+    INITIALIZATION
+  -}
+  box <- vBoxNew False 3
+
+  row <- hBoxNew False 3
+  button <- buttonNewWithLabel "What Happens?"
+  edit <- buttonNewWithLabel "Edit"
+
+  ls <- mapM (\x -> labelNew $ Just $ title x) events
+  ps <- mapM (\_ -> progressBarNew) events
+  {-
+    CONSTRUCTION
+  -}
+  mapM_ (\(l,p,e) -> do
+      v <- eventBoxNew
+      s <- hSeparatorNew
+
+      set p   [ progressBarFraction := 1.0
+              , progressBarText := ""
+              ]
+      set v   [ containerChild := p
+              , eventBoxVisibleWindow := False
+              ]
+      set box [ containerChild := l, boxChildPacking l := PackNatural
+              , containerChild := v, boxChildPacking v := PackNatural
+              , containerChild := s, boxChildPacking s := PackNatural
+              ]
+
+      on v buttonPressEvent $ tryEvent $ do
+        LeftButton <- eventButton
+        liftIO $ set p [ progressBarFraction := 1.0 ]
+    ) $ zip3 ls ps events
+
+  set row [ containerChild := button, boxChildPacking button := PackGrow
+          , containerChild := edit, boxChildPacking edit := PackNatural
+          ]
+  set box [ containerChild := row, boxChildPacking row := PackNatural ]
+  set v   [ containerChild := box, boxChildPacking box := PackNatural ]
+  {-
+    LOGIC
+  -}
   on button buttonActivated $ do
-    n <- randomRIO (0,(length l)-1)
-    frac <- progressBarGetFraction (l!!n)
-    text <- labelGetText (l'!!n)
-    progressBarSetFraction (l!!n) (findNewFrac text frac)
-    widgetShowAll frame
+    n <- randomRIO (0,(length events)-1)
+    frac <- progressBarGetFraction (ps!!n)
+    progressBarSetFraction (ps!!n) $ frac-(decr $ events!!n)
+  on edit buttonActivated $ editEventWidget v events
 
-  return frame'
-  where f x y = if x<y then 0.0 else x-y
-        findNewFrac text frac = case text of
-          "Exhausted!"        -> f frac 0.05    --20 steps
-          "Lantern Goes Out!" -> f frac 0.125   --8 steps
-          "Random Encounter!" -> f frac 0.25    --4 steps
-          "Torch Goes Out!"   -> f frac 0.5     --2 steps
+  widgetShowAll v
+
+editEventWidget :: VBox -> [Event] -> IO ()
+editEventWidget v events = do
+  mapM_ widgetDestroy =<< containerGetChildren v
+  {-
+    INITIALIZATION
+  -}
+  box <- vBoxNew False 3
+
+  new <- buttonNewWithLabel "New Event"
+  row <- hBoxNew True 3
+  button <- buttonNewWithLabel "Done"
+  cancel <- buttonNewWithLabel "Cancel"
+
+  es <- mapM (\_ -> entryNew) events
+  ss <- mapM (\_ -> spinButtonNewWithRange 1.0 100.0 1.0) events
+  {-
+    CONSTRUCTION
+  -}
+  mapM_ (\(e,s) -> do
+      b <- vBoxNew False 0
+      r <- hBoxNew True 0
+      l <- labelNew $ Just "Steps: "
+
+      set r   [ containerChild := l
+              , containerChild := s
+              ]
+      set b   [ containerChild := e, boxChildPacking e := PackNatural
+              , containerChild := r, boxChildPacking r := PackNatural
+              ]
+      set box [ containerChild := b, boxChildPacking b := PackNatural ]
+    ) $ zip es ss
+  set row [ containerChild := button
+          , containerChild := cancel
+          ]
+  set v   [ containerChild := box, boxChildPacking box := PackNatural
+          , containerChild := new, boxChildPacking new := PackNatural
+          , containerChild := row, boxChildPacking row := PackNatural
+          ]
+  {-
+    LOGIC
+  -}
+  mapM_ (\(s,e) -> spinButtonSetValue s (1/decr e)) $ zip ss events
+  mapM_ (\(e,v) -> entrySetText e (title v)) $ zip es events
+
+  on new buttonActivated $ do
+    es' <- mapM entryGetText es
+    ss' <- mapM spinButtonGetValue ss
+    editEventWidget v $ (map newEvent (zip es' ss'))++[blankEvent]
+  on button buttonActivated $ do
+    es' <- mapM entryGetText es
+    ss' <- mapM spinButtonGetValue ss
+    makeEventWidget' v $ map newEvent (zip es' ss')
+  on cancel buttonActivated $ makeEventWidget' v events
+  widgetShowAll v
+  where newEvent (x,y) = Event { title = x, tooltip = "", decr = 1/y }
+        blankEvent = Event { title = "", tooltip = "", decr = 0.5 }
+
+data Event = Event { title :: String    --Put on the label above the bar
+                   , tooltip :: String  --Tooltip when hoving over
+                   , decr :: Double     --Decriment function
+                   }
+  deriving (Eq,Ord)
+
+startingEvents :: [Event]
+startingEvents = [encounterEvent,torchEvent,lanternEvent,exhaustEvent]
+
+torchEvent :: Event
+torchEvent = Event  { title = "Torch Goes Out!"
+                    , tooltip = ""
+                    , decr = 0.6 --Two steps, but looks to be at 40% after first tick
+                    }
+
+exhaustEvent :: Event
+exhaustEvent = Event  { title = "Exhausted!"
+                      , tooltip = ""
+                      , decr = 0.1 --Ten steps
+                      }
+
+lanternEvent :: Event
+lanternEvent = Event  { title = "Lantern Goes Out!"
+                      , tooltip = ""
+                      , decr = 0.125 --Eight steps
+                      }
+
+encounterEvent :: Event
+encounterEvent = Event  { title = "Random Encounter!"
+                        , tooltip = ""
+                        , decr = 0.25 --Four steps
+                        }

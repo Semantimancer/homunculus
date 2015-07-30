@@ -18,12 +18,14 @@ import System.Random
 
 data Generator = Generator { name, description :: String    -- Displayed to user
                            , tables :: [Table]              -- Meat & Potatoes
-                           , options :: [(String,[String])] --User-set options
+                           , options :: [Option]            --User-set options
                            }
   deriving (Read,Show,Eq,Ord)
 
-data Table = Table { title :: String                      -- Displayed to user
-                   , rows :: [Row]                        -- Actual Information
+type Option = (String,[String])
+
+data Table = Table { title :: String                        -- Displayed to user
+                   , rows :: [Row]                          -- Actual Information
                    }
   deriving (Read,Show,Eq,Ord)
 
@@ -60,6 +62,14 @@ maybeToList (x:xs) = case x of
 getTableFromName :: [Table] -> String -> Maybe Table
 getTableFromName [] _ = Nothing
 getTableFromName (x:xs) n = if (title x)==n then Just x else getTableFromName xs n
+
+getOptionFromName :: [Option] -> String -> Maybe (Option,Int)
+getOptionFromName xs s = getOptionFromName' xs s 0
+
+getOptionFromName' :: [Option] -> String -> Int -> Maybe (Option,Int)
+getOptionFromName' [] _ _ = Nothing
+getOptionFromName' (x:xs) s n = if (fst x)==s then Just (x,n) 
+                                              else getOptionFromName' xs s (n+1)
 
 testGen :: Generator
 testGen = Generator { name = "Test"
@@ -324,7 +334,7 @@ editGenerator gen box' (top,dataPath) = do
   optFra <- frameNew
   optRow <- hBoxNew True 0
 
-  os <- newIORef (options gen)
+  os <- newIORef $ options gen
   ts <- newIORef [] :: IO (IORef [(Entry,ListStore Row)])
 
   tableRow <- hBoxNew True 0
@@ -332,7 +342,7 @@ editGenerator gen box' (top,dataPath) = do
   {-
     CONSTRUCTION
   -}
-  mapM_ (comboBoxAppendText optCom) $ map (pack . fst) $ options gen
+  mapM_ (comboBoxAppendText optCom) $ map pack $ (map fst $ options gen)++["New Option..."]
   mapM_ (makePage right ts) (tables gen)
 
   set new     [ toolButtonLabel := Just "New Table" ]
@@ -389,11 +399,24 @@ editGenerator gen box' (top,dataPath) = do
   {-
     LOGIC
   -}
-  --on optCom changed $ editOption optOpt os =<< comboBoxGetActiveText optCom
-  if options gen==[] then return () else comboBoxSetActive optCom 0
+  --if options gen==[] then return () else comboBoxSetActive optCom 0
+
+  on optCom changed $ do
+    {---This is unsafe, but I don't think the user can cause an error with it
+    Just t <- comboBoxGetActiveText optCom-}
+    x <- comboBoxGetActiveText optCom
+    opts <- readIORef os
+
+    if x==Nothing then return () 
+    else let (Just t) = x in case unpack t of
+      "New Option..." -> do
+                          modifyIORef os (\x -> x++[("New Option",[""])])
+                          opts' <- readIORef os
+                          editOption optOpt optCom os (getOptionFromName opts' "New Option")
+      x               -> editOption optOpt optCom os (getOptionFromName opts x)
 
   onToolButtonClicked new $ makePage right ts $ Table { title = "New Table", rows = [] }
-  onToolButtonClicked save $ saveGen gen nameBox descBuf ts
+  onToolButtonClicked save $ saveGen gen nameBox descBuf os ts
   onToolButtonClicked exit $ do
     mapM_ widgetDestroy =<< containerGetChildren box'
     updateTop top dataPath box'
@@ -402,9 +425,84 @@ editGenerator gen box' (top,dataPath) = do
 
   widgetShowAll box'
 
+editOption :: VBox -> ComboBox -> IORef [Option] -> Maybe (Option,Int) -> IO ()
+editOption v combo list Nothing = return ()
+editOption v combo list (Just (o,i)) = do
+  mapM_ widgetDestroy =<< containerGetChildren v
+  {-
+    INITIALIZATION
+  -}
+  row1 <- hBoxNew False 0
+  label <- labelNew $ Just "Name: "
+  entry <- entryNew
 
-saveGen :: Generator -> Entry -> TextBuffer -> IORef ([(Entry,ListStore Row)]) -> IO ()
-saveGen gen nameBox descBuf ts = do
+  row2 <- hBoxNew True 0
+  txt <- labelNew $ Just "Number Of Rows: "
+  spin <- spinButtonNewWithRange 1.0 100.0 1.0
+  update <- buttonNewWithLabel "Update"
+
+  row3 <- hBoxNew True 0
+  button <- buttonNewWithLabel "Save Option"
+  cancel <- buttonNewWithLabel "Cancel"
+
+  box <- vBoxNew False 0
+
+  os <- mapM (\x -> do
+    e <- entryNew
+
+    set e   [ entryText := x ]
+    set box [ containerChild := e, boxChildPacking e := PackNatural ]
+
+    return e
+    ) $ snd o
+  {-
+    CONSTRUCTION
+  -}
+  set entry [ entryText := fst o ]
+  set spin  [ spinButtonValue := toEnum $ length $ snd o 
+            , spinButtonNumeric := True
+            , spinButtonUpdatePolicy := UpdateIfValid
+            ]
+  set row1  [ containerChild := label, boxChildPacking label := PackNatural
+            , containerChild := entry
+            ]
+  set row2  [ containerChild := txt
+            , containerChild := spin
+            ]
+  set row3  [ containerChild := button
+            , containerChild := cancel
+            ]
+  set v     [ containerChild := row1, boxChildPacking row1 := PackNatural
+            , containerChild := box, boxChildPacking box := PackNatural
+            , containerChild := row2, boxChildPacking row2 := PackNatural
+            , containerChild := update, boxChildPacking update := PackNatural
+            , containerChild := row3, boxChildPacking row3 := PackNatural
+            ]
+  {-
+    LOGIC
+  -}
+  on update buttonActivated $ do
+    name <- entryGetText entry
+    opts <- mapM entryGetText os
+
+    n <- spinButtonGetValue spin
+
+    editOption v combo list $ Just ((name,take (floor n) $ opts++(repeat "")),i)
+  on button buttonActivated $ do
+    name <- entryGetText entry
+    opts <- mapM entryGetText os
+
+    xs <- readIORef list
+    writeIORef list $ (take i xs)++[(name,opts)]++(drop (i+1) xs)
+    mapM_ widgetDestroy =<< containerGetChildren v
+    comboBoxSetActive combo (-1)
+  on cancel buttonActivated $ mapM_ widgetDestroy =<< containerGetChildren v
+
+  widgetShowAll v
+
+saveGen :: Generator -> Entry -> TextBuffer -> IORef [Option]
+        -> IORef ([(Entry,ListStore Row)]) -> IO ()
+saveGen gen nameBox descBuf os ts = do
   name' <- entryGetText nameBox
   (i,i') <- textBufferGetBounds descBuf
   desc' <- textBufferGetText descBuf i i' True
@@ -414,9 +512,10 @@ saveGen gen nameBox descBuf ts = do
     list <- listStoreToList m
     return $ Table { title = text, rows = list } 
     ) ts''
+  os' <- readIORef os
   let newGen = Generator  { name = name'
                           , description = desc'
-                          , options = options gen --Still working on this one
+                          , options = os' 
                           , tables = ts'
                           }
   dataPath <- getAppUserDataDirectory "homunculus"

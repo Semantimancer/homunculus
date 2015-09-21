@@ -18,7 +18,7 @@ import System.Random
 
 data Generator = Generator { name, description :: String    -- Displayed to user
                            , tables :: [Table]              -- Meat & Potatoes
-                           , options :: [Option]            --User-set options
+                           , options :: [Option]            -- User-set options
                            }
   deriving (Read,Show,Eq,Ord)
 
@@ -31,20 +31,47 @@ data Table = Table { title :: String                        -- Displayed to user
 
 type Row = (Int,String)
 
+{-
+  I need one extra parser, which I can't include in Homunculus.Parser for reasons of
+  dependency. This parser goes through the string and pulls out table references in the
+  format <TableName> and then generates a result from THAT table, substituting it in.
+
+  The idea is that this should be called before the other parsers, so that when the
+  actual generate' function is called, all of that has already been sorted out already.
+-}
+tableRef :: [Table] -> [String] -> StdGen -> Parser String
+tableRef ts opts g = do
+  x <- (tableRef' ts opts g) <> getChar'
+  xs <- many $ tableRef ts opts g
+  return $ concat $ x:xs
+
+tableRef' :: [Table] -> [String] -> StdGen -> Parser String
+tableRef' ts opts g = do
+  _ <- char '<'
+  xs <- Homunculus.Parser.until ">"
+  _ <- char '>'
+  if xs `elem` (map title ts)
+  then return $ generate' (getTableFromName ts xs) ts opts g
+  else return $ "ERROR: No table of name \""++xs++"\""
+
 --Generate function decides what tables to use during the generation
 generate :: Generator -> [String] -> StdGen -> String
 generate g (ts:opts) gen = case ts of
-  "All" -> concatMap (\t -> concat [title t,"\n     ",(generate' (Just t) opts gen),"\n"]) 
-              $ tables g
-  x     -> generate' (getTableFromName (tables g) x) opts gen
+  "All" -> concatMap (\t -> concat [title t,"\n     "
+                                   ,(generate' (Just t) (tables g) opts gen),"\n"]
+                      ) $ tables g
+  x     -> generate' (getTableFromName (tables g) x) (tables g) opts gen
 
 --Sub-function actually generates, based on a single Table rather than a whole Generator
-generate' :: Maybe Table -> [String] -> StdGen -> String
-generate' Nothing _ _ = "Error: No Table With That Name!"
-generate' (Just t) opts g = case parse (script opts g') $ list !! (i `mod` length list) of
+generate' :: Maybe Table -> [Table] -> [String] -> StdGen -> String
+generate' Nothing _ _ _ = "Error: No Table With That Name!"
+generate' (Just t) ts opts g = case parse (script opts g') result of
   [(x,[])]  -> x
   []        -> "Error in parse function!"
-  where list = concatMap (uncurry replicate) $ rows t
+  where result = case parse (tableRef ts opts g) $ list !! (i `mod` length list) of
+                  [(x,[])]  -> x
+                  []        -> "Error in tableRef function!"
+        list = concatMap (uncurry replicate) $ rows t
         (i,g') = random g :: (Int,StdGen)
 
 readGenerator :: String -> Maybe Generator

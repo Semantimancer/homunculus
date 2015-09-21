@@ -55,7 +55,6 @@ instance Monad Parser where
 instance Applicative Parser where
   pure  = return
   (<*>) = ap
-                                  
 
 --Applies the parser function to the string
 parse :: Parser a -> String -> [(a,String)]
@@ -201,7 +200,7 @@ dice g = do
   x <- dice' g
   return $ show $ foldl (+) 0 x
 
---Takes dice notation (XdY) and creates a [Int] to simulate rolling that many times
+--Takes dice notation (XdY) and creates a [Int] to simulate rolling that many times.
 dice' :: StdGen -> Parser [Int]
 dice' g = do
   --If there's an int, pull it. If not (written "dY"), it will use a 1.

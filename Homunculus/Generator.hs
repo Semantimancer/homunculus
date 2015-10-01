@@ -67,7 +67,7 @@ generate g (ts:opts) gen = case ts of
 generate' :: Maybe Table -> [Table] -> [String] -> StdGen -> String
 generate' Nothing _ _ _ = "Error: No Table With That Name!"
 generate' (Just t) ts' opts g = case parse (script opts g') result of
-  [(x,[])]  -> replace "\\\\" "\n" x
+  [(x,[])]  -> checkRecursion x
   []        -> "Error in parse function!"
   where result = case parse (tableRef ts opts g) $ list !! (i `mod` length list) of
                   [(x,[])]  -> x
@@ -75,6 +75,11 @@ generate' (Just t) ts' opts g = case parse (script opts g') result of
         list = concatMap (uncurry replicate) $ rows t
         --So after a table has been called, it can't be called again. No recursion.
         ts = filter (/=t) ts'
+
+        checkRecursion str = case parse (script opts g') str of
+          [(x,[])]  -> if x==str then replace "\\\\" "\n" str else checkRecursion x
+          _         -> "Error in checkRecursion function!"
+
         (i,g') = random g :: (Int,StdGen)
 
 readGenerator :: String -> Maybe Generator

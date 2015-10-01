@@ -177,8 +177,8 @@ script opts g = do
   --when we return everything we have to concat them all back together. We use a new
   --StdGen for this recursion so that we don't keep getting the same numbers over and over.
   xs <- many $ script opts g'
-  --Finally, before returning, this runs the result through a series of secondary parsers
-  --that make any finishing touches
+  --Then we run the generated string through a parser to do calculations, since those 
+  --need to be done after everything else.
   return $ ret $ concat $ x:xs
   where ret s = case parse script' s of
           [(x,[])]  -> x

@@ -6,6 +6,7 @@ import Control.Monad.IO.Class (liftIO)
 import Data.Char (isAlphaNum)
 import Data.IORef
 import Data.List (isInfixOf)
+import Data.List.Utils (replace)
 import Data.Text (pack,unpack)
 import Graphics.UI.Gtk hiding (Table)
 import System.Directory
@@ -65,13 +66,15 @@ generate g (ts:opts) gen = case ts of
 --Sub-function actually generates, based on a single Table rather than a whole Generator
 generate' :: Maybe Table -> [Table] -> [String] -> StdGen -> String
 generate' Nothing _ _ _ = "Error: No Table With That Name!"
-generate' (Just t) ts opts g = case parse (script opts g') result of
-  [(x,[])]  -> x
+generate' (Just t) ts' opts g = case parse (script opts g') result of
+  [(x,[])]  -> replace "\\\\" "\n" x
   []        -> "Error in parse function!"
   where result = case parse (tableRef ts opts g) $ list !! (i `mod` length list) of
                   [(x,[])]  -> x
                   []        -> "Error in tableRef function!"
         list = concatMap (uncurry replicate) $ rows t
+        --So after a table has been called, it can't be called again. No recursion.
+        ts = filter (/=t) ts'
         (i,g') = random g :: (Int,StdGen)
 
 readGenerator :: String -> Maybe Generator
@@ -267,7 +270,10 @@ runGenerator gen box' = do
   {-
     CONSTRUCTION
   -}
-  mapM_ (comboBoxAppendText tabCombo) $ (pack "All"):(map (pack . title) (tables gen))
+  mapM_ (comboBoxAppendText tabCombo) 
+    $ if ((title $ head $ tables gen)=="Main") 
+      then (map (pack . title) (tables gen))++[pack "All"]
+      else (pack "All"):(map (pack . title) (tables gen))
   set tabRow [ containerChild := tabLabel
              , containerChild := tabCombo
              ]

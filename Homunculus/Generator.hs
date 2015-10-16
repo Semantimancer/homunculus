@@ -310,7 +310,7 @@ runGenerator gen box' = do
             ]
   set right [ frameShadowType := ShadowIn
             , containerChild := view ]
-  set left' [ scrolledWindowHscrollbarPolicy := PolicyAutomatic
+  set left' [ scrolledWindowHscrollbarPolicy := PolicyNever
             , scrolledWindowVscrollbarPolicy := PolicyAutomatic
             , scrolledWindowShadowType := ShadowEtchedOut
             ]

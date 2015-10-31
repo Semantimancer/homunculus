@@ -75,11 +75,11 @@ makeDiceWidget = do
 
   widgetShowAll exp
   return exp
-  where f x g = case parse (dice' g) x of--case parse (script [] g) x of
+  where f x g = case parse (dice' g) x of
                 [(q,"")]  -> concat ["Rolls: ",show q,"\nTotal: "
                                     ,show $ sum q,"\n"]
                 _         -> "Parse error in dice widget\n\n"
-        f' i (True:_) (y:_) = (show $ floor i)++y
+        f' i (True:_) (y:_) = if (head y)=='d' then (show $ floor i)++y else y
         f' i (False:xs) (_:ys) = f' i xs ys
 
 ds :: [String]

@@ -22,3 +22,7 @@ Next, install the necessary libraries.
 Copy the .homunculus folder to your home directory.
 
 ``` $ mv .homunculus ~/.homunculus ```
+
+Finally, compile and run.
+
+``` $ ghc homunculus ```

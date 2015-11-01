@@ -9,7 +9,9 @@
 
 First, make sure that ghc and cabal are installed.
 
-``` # apt-get install ghc cabal ```
+``` 
+# apt-get install ghc cabal 
+```
 
 Next, install the necessary libraries.
 
@@ -21,8 +23,12 @@ Next, install the necessary libraries.
 
 Copy the .homunculus folder to your home directory.
 
-``` $ mv .homunculus ~/.homunculus ```
+``` 
+$ mv .homunculus ~/.homunculus 
+```
 
 Finally, compile and run.
 
-``` $ ghc homunculus ```
+``` 
+$ ghc homunculus 
+```

@@ -57,7 +57,7 @@ start = do
   hbox <- hBoxNew False 0
 
   sideBox <- vBoxNew False 0
-  genBox <- vBoxNew False 0
+  genBox <- vBoxNew False 5
 
   {-
     CONSTRUCTION
@@ -68,6 +68,7 @@ start = do
   mapM_ (menuShellAppend fileMenu) [quit]
 
   set file    [ menuItemSubmenu := fileMenu ]
+  set genBox  [ containerBorderWidth := 5 ]
   set hbox    [ containerChild := sideBox, boxChildPacking sideBox := PackNatural
               , containerChild := genBox 
               ]

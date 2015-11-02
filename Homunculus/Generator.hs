@@ -175,7 +175,7 @@ makeGenerator dataPath box = do
   {-
     CONSTRUCTION
   -}
-  set bottom  [ containerBorderWidth := 5 ]
+  --set bottom  [ containerBorderWidth := 5 ]
   set box     [ containerChild := top, boxChildPacking top := PackNatural
               , containerChild := bottom
               ]

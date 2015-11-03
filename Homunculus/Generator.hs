@@ -139,8 +139,7 @@ dummyNewGen = Generator { name = "New Generator..."
 dummyMakeNewGen :: Generator
 dummyMakeNewGen = Generator { name = "New Generator"
                             , description = concat ["To finish your new generator, edit "
-                                                   ,"this one (including the name) and "
-                                                   ,"hit 'Save'"]
+                                                   ,"this one and hit 'Save'"]
                             , tables = [], options = []
                             }
 

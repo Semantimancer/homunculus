@@ -236,22 +236,33 @@ ops' = do
 list :: StdGen -> Parser String
 list g = do
   _ <- char '['
-  xs <- list'
+  xs <- list' g'
   return $ xs !! (i `mod` length xs)
-  where (i,_) = random g :: (Int,StdGen)
+  where (i,g') = random g :: (Int,StdGen)
 
 --Divides the list into [String] so that list can choose one to use
-list' :: Parser [String]
-list' = do
+--If it sees another list, it will recurse before continuing
+list' :: StdGen -> Parser [String]
+list' g = do
   --Keep pulling stuff in until you hit a | (end of entry) or ] (end of list)
-  val <- until "|]" 
-  x <- oneOf "|]"
+  val <- until "[|]" 
+  x <- oneOf "[|]"
   --Recurses until it finds the end of the list (])
   if x=='|'
   then do
-    val' <- list'
+    val' <- list' g'
     return (val:val')
+  else if x=='['
+  then do
+    --Capture the inner list
+    xs <- list' g'  
+    --Capture the rest of the main list
+    val' <- list' (mkStdGen i)
+    --Choose a result from the inner list, add it to the main list's options
+    --We also have to use init to catch the extra empty val which "]]" will cause
+    return ((xs !! (i `mod` length xs)) : (init val'))
   else return [val]
+  where (i,g') = random g :: (Int,StdGen)
 
 --Takes a set of options {A=foo|B=bar|Else=Baz} and picks the first TRUE statement
 vars :: [String] -> Parser String

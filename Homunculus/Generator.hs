@@ -66,20 +66,16 @@ generate g (ts:opts) gen = case ts of
 --Sub-function actually generates, based on a single Table rather than a whole Generator
 generate' :: Maybe Table -> [Table] -> [String] -> StdGen -> String
 generate' Nothing _ _ _ = "Error: No Table With That Name!"
-generate' (Just t) ts' opts g = case parse (script opts g') result of
-  [(x,[])]  -> checkRecursion x
+generate' (Just t) ts' opts g = case parse (script opts g') full of
+  [(x,[])]  -> replace "\\\\" "\n" x
   []        -> "Error in parse function!"
-  where result = case parse (tableRef ts opts g) $ list !! (i `mod` length list) of
+  where --This is the full string, with all table references already taken care of
+        full = case parse (tableRef ts opts g) $ list !! (i `mod` length list) of
                   [(x,[])]  -> x
                   []        -> "Error in tableRef function!"
         list = concatMap (uncurry replicate) $ rows t
         --So after a table has been called, it can't be called again. No recursion.
         ts = filter (/=t) ts'
-
-        checkRecursion str = case parse (script opts g') str of
-          [(x,[])]  -> if x==str then replace "\\\\" "\n" str else checkRecursion x
-          _         -> "Error in checkRecursion function!"
-
         (i,g') = random g :: (Int,StdGen)
 
 readGenerator :: String -> Maybe Generator

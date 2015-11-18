@@ -2,6 +2,7 @@ module Homunculus.Roller where
 
 import Homunculus.Parser
 
+import Data.IORef
 import Graphics.UI.Gtk
 import System.Random
 
@@ -26,6 +27,9 @@ makeDiceWidget = do
   row <- hBoxNew False 0
 
   button <- buttonNewWithLabel "Roll"
+
+  timer <- checkButtonNewWithLabel "Roll Automatically"
+  check <- newIORef False
   {-
     CONSTRUCTION
   -}
@@ -57,6 +61,7 @@ makeDiceWidget = do
             , containerChild := num, boxChildPacking num := PackNatural
             , containerChild := box', boxChildPacking box' := PackNatural
             , containerChild := button, boxChildPacking button := PackNatural 
+            , containerChild := timer, boxChildPacking timer := PackNatural
             ]
   set frame [ containerChild := box ]
   set exp   [ expanderExpanded := True
@@ -72,6 +77,21 @@ makeDiceWidget = do
     i <- spinButtonGetValue num
     g <- newStdGen
     textBufferSetText txt $ f (f' i bools ((reverse ds)++[t])) g
+
+  on timer toggled $ do
+    go <- readIORef check
+    if (not go)
+    then do
+      writeIORef check True
+      bool <- toggleButtonGetActive timer
+      if bool then buttonClicked button else return ()
+      tmhandle <- timeoutAdd ((\_ -> do
+        bool <- toggleButtonGetActive timer
+        if bool
+        then buttonClicked button >> return True
+        else writeIORef check False >> return False) "") 5000
+      return ()
+    else return ()
 
   widgetShowAll exp
   return exp

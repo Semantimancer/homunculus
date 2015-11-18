@@ -1,6 +1,7 @@
 module Homunculus.Sidebar where
 
 import Homunculus.Event
+import Homunculus.Roller
 
 import Graphics.UI.Gtk
 
@@ -10,11 +11,11 @@ makeSidebar dataPath box = do
   {-
     INITIALIZATION
   -}
-  eventWidget <- makeEventWidget
+  widgets <- mapM (\x -> return =<< x) [makeEventWidget,makeDiceWidget]
   {-
     CONSTRUCTION
   -}
-  set box [ containerChild := eventWidget, boxChildPacking eventWidget := PackNatural ]
+  mapM_ (\x -> set box [ containerChild := x, boxChildPacking x:= PackNatural ]) widgets
   {-
     LOGIC
   -}

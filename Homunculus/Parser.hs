@@ -244,25 +244,28 @@ list g = do
 --If it sees another list, it will recurse before continuing
 list' :: StdGen -> Parser [String]
 list' g = do
-  --Keep pulling stuff in until you hit a | (end of entry) or ] (end of list)
+  --Keep pulling stuff in until you hit something list-y
   val <- until "[|]" 
-  x <- oneOf "[|]"
-  --Recurses until it finds the end of the list (])
-  if x=='|'
-  then do
-    val' <- list' g'
-    return (val:val')
-  else if x=='['
-  then do
-    --Capture the inner list
-    xs <- list' g'  
-    --Capture the rest of the main list
-    val' <- list' (mkStdGen i)
-    --Choose a result from the inner list, add it to the main list's options
-    --We also have to use init to catch the extra empty val which "]]" will cause
-    return ((xs !! (i `mod` length xs)) : (init val'))
-  else return [val]
-  where (i,g') = random g :: (Int,StdGen)
+  --Deal with that list-y thing, and get back a [String] to return
+  xs <- (newList val g') <> (f val)
+  return xs
+  where --If you hit a [, that means you've got a list within a list. So you have to
+        --pull in the new list (and make a decision about which part to use), then 
+        --combine that with everything else you'll find in this entry.
+        newList val g = do
+          l <- list g'
+          xs <- list' (mkStdGen i)
+          return $ (val++l++(head xs)) : (tail xs)
+        --If you hit a | or ], you know that you're done with this entry. The difference
+        --is in whether or not you then try to find more.
+        f val = do
+          x <- oneOf "|]"
+          if x=='|' 
+          then do
+            val' <- list' g'
+            return $ val:val'
+          else return [val]
+        (i,g') = random g :: (Int,StdGen)
 
 --Takes a set of options {A=foo|B=bar|Else=Baz} and picks the first TRUE statement
 vars :: [String] -> Parser String

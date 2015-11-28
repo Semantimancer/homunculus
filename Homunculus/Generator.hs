@@ -35,7 +35,7 @@ type Row = (Int,String)
 {-
   I need one extra parser, which I can't include in Homunculus.Parser for reasons of
   dependency. This parser goes through the string and pulls out table references in the
-  format <TableName> and then generates a result from THAT table, substituting it in.
+  format "<TableName>" and then generates a result from THAT table, substituting it in.
 
   The idea is that this should be called before the other parsers, so that when the
   actual generate' function is called, all of that has already been sorted out already.

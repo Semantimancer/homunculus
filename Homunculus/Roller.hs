@@ -76,7 +76,7 @@ makeDiceWidget = do
     t <- entryGetText dX'
     i <- spinButtonGetValue num
     g <- newStdGen
-    textBufferSetText txt $ f (f' i bools ((reverse ds)++[t])) g
+    textBufferSetText txt $ f (filterDice i bools ((reverse ds)++[t])) g
 
   on timer toggled $ do
     go <- readIORef check
@@ -96,11 +96,14 @@ makeDiceWidget = do
   widgetShowAll exp
   return exp
   where f x g = case parse (dice' g) x of
-                [(q,"")]  -> concat ["Rolls: ",show q,"\nTotal: "
-                                    ,show $ sum q,"\n"]
+                [(q,"")]  -> concat ["Rolls: ",show q,"\nTotal: ",show $ sum q,"\n"]
+                [(q,s)]   -> case parse ops ((show $ sum q)++s) of
+                              [(x,"")]  -> concat ["Rolls: ",show q,"\nTotal: ",x,"\n"]
+                              _         -> "Operation error in dice widget\n\n"
                 _         -> "Parse error in dice widget\n\n"
-        f' i (True:_) (y:_) = if (head y)=='d' then (show $ floor i)++y else y
-        f' i (False:xs) (_:ys) = f' i xs ys
+        --Figures out which type of dice to use for the roll, and how many
+        filterDice i (True:_) (y:_) = if (head y)=='d' then (show $ floor i)++y else y
+        filterDice i (False:xs) (_:ys) = filterDice i xs ys
 
 ds :: [String]
 ds = ["d3","d4","d6","d8","d10","d12","d20","d30","d100"]

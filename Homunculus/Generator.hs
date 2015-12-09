@@ -43,8 +43,9 @@ type Row = (Int,String)
 tableRef :: [Table] -> [String] -> StdGen -> Parser String
 tableRef ts opts g = do
   x <- (tableRef' ts opts g) <> getChar'
-  xs <- many $ tableRef ts opts g
+  xs <- many $ tableRef ts opts g'
   return $ concat $ x:xs
+  where (_,g') = random g :: (Int,StdGen)
 
 tableRef' :: [Table] -> [String] -> StdGen -> Parser String
 tableRef' ts opts g = do

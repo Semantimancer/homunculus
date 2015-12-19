@@ -433,8 +433,6 @@ editGenerator gen box' (top,dataPath) = do
   {-
     LOGIC
   -}
-  --if options gen==[] then return () else comboBoxSetActive optCom 0
-
   on optCom changed $ do
     {---This is unsafe, but I don't think the user can cause an error with it
     Just t <- comboBoxGetActiveText optCom-}
@@ -577,12 +575,16 @@ makePage right ts x = do
 
   new <- toolButtonNewFromStock stockNew
   del <- toolButtonNewFromStock stockDelete
+  lb <- toolButtonNewFromStock stockGotoFirst
+  rb <- toolButtonNewFromStock stockGotoLast
 
   {-
     CONSTRUCTION
   -}
   set bar   [ containerChild := new
             , containerChild := del
+            , containerChild := lb
+            , containerChild := rb
             ]
   set page  [ containerChild := bar, boxChildPacking bar := PackNatural ]
   set entry [ entryText := title x ]
@@ -597,8 +599,24 @@ makePage right ts x = do
   -}
   model <- showTable page x [new,del]
 
+  onToolButtonClicked lb $ do
+    --This is unsafe, but I don't think it's possible for users to make an error
+    (Just i) <- notebookPageNum right page
+    notebookReorderChild right page (i-1)
+    modifyIORef ts (moveLeft i)
+  onToolButtonClicked rb $ do
+    --This is unsafe, but I don't think it's possible for users to make an error
+    (Just i) <- notebookPageNum right page
+    notebookReorderChild right page (i+1)
+    modifyIORef ts (moveRight i)
+
   modifyIORef' ts (++[(entry,model)])
   widgetShowAll box
+  where moveRight i xs = if i>=(length xs-1) 
+                         then xs
+                         else let (l,r:rs) = splitAt i xs in l++[head rs,r]++(tail rs)
+        moveLeft 0 xs = xs
+        moveLeft i xs = let (l,r:rs) = splitAt i xs in (init l)++[r,last l]++rs
 
 showTable :: VBox -> Table -> [ToolButton] -> IO (ListStore Row)
 showTable v t [new,del] = do

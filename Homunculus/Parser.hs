@@ -285,4 +285,6 @@ vars' = do
     val' <- vars'
     return $ (makeTuple val):val'
   else return [makeTuple val]
-  where makeTuple q = let f (x:y:_) = (x,y) in f $ split "=" q
+  where makeTuple q = f $ split "=" q
+        f (x:y:_) = (x,y)
+        f x       = (show x,"Error in "++(show x))

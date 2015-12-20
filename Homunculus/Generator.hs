@@ -293,6 +293,7 @@ runGenerator gen box' = do
     return combo
     ) $ options gen
 
+  set descLabel [ labelWrap := True ]
   set left  [ containerBorderWidth := 10
             , containerChild := descLabel, boxChildPacking descLabel := PackNatural
             , containerChild := optBox, boxChildPacking optBox := PackNatural
@@ -434,8 +435,6 @@ editGenerator gen box' (top,dataPath) = do
     LOGIC
   -}
   on optCom changed $ do
-    {---This is unsafe, but I don't think the user can cause an error with it
-    Just t <- comboBoxGetActiveText optCom-}
     x <- comboBoxGetActiveText optCom
     opts <- readIORef os
 

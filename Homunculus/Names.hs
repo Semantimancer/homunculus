@@ -1,7 +1,7 @@
 module Homunculus.Names where
 
 import Control.Monad (foldM)
-import Data.List (isInfixOf)
+import Data.List
 import Data.MarkovChain
 import Graphics.UI.Gtk
 import System.Directory
@@ -58,7 +58,12 @@ makeNameWidget = do
             , expanderExpanded := True
             , containerBorderWidth := 5
             ]
-  mapM_ (\c -> boxPackStart nbox c PackNatural 0) (map fst cs)
+  --This is more complicated than it needs to be, but I wanted it to put two on a row
+  mapM_ (\xs -> do 
+            r <- hBoxNew False 2
+            mapM_ (\x -> boxPackStart r x PackGrow 0) xs
+            boxPackStart nbox r PackNatural 0
+            ) $ splitEvery 2 $ map fst cs
 
   {-
     LOGIC
@@ -77,3 +82,7 @@ makeNameWidget = do
 
   widgetShowAll exp
   return exp
+
+splitEvery :: Int -> [a] -> [[a]]
+splitEvery _ [] = []
+splitEvery i xs = let (l,r) = splitAt i xs in l:splitEvery i r

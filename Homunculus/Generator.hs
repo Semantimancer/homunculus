@@ -5,7 +5,7 @@ import Homunculus.Parser
 import Control.Monad.IO.Class (liftIO)
 import Data.Char (isAlphaNum)
 import Data.IORef
-import Data.List (isInfixOf)
+import Data.List
 import Data.List.Utils (replace)
 import Data.Text (pack,unpack)
 import Graphics.UI.Gtk hiding (Table)
@@ -342,7 +342,7 @@ editGenerator gen box' (top,dataPath) = do
   box <- vBoxNew False 0
   bar <- toolbarNew
   pane <- hPanedNew
-  left' <- frameNew
+  left' <- scrolledWindowNew Nothing Nothing
   left <- vBoxNew False 0
   right' <- frameNew
   right <- notebookNew
@@ -363,8 +363,6 @@ editGenerator gen box' (top,dataPath) = do
   descRow <- hBoxNew True 0
 
   optText <- labelNew $ Just "Options: "
-  optCom <- comboBoxNewText
-  optOpt <- vBoxNew False 0
   optBox <- vBoxNew False 0
   optFra <- frameNew
   optRow <- hBoxNew True 0
@@ -377,7 +375,7 @@ editGenerator gen box' (top,dataPath) = do
   {-
     CONSTRUCTION
   -}
-  mapM_ (comboBoxAppendText optCom) $ map pack $ (map fst $ options gen)++["New Option..."]
+  makeOptionBox optBox os
   mapM_ (makePage right ts) (tables gen)
 
   set new     [ toolButtonLabel := Just "New Table" ]
@@ -400,9 +398,7 @@ editGenerator gen box' (top,dataPath) = do
   set descRow [ containerChild := descText
               , containerChild := descFra
               ]
-  set optBox  [ containerChild := optCom
-              , containerChild := optOpt
-              ]
+  set optBox  [ containerBorderWidth := 2 ]
   set optFra  [ containerChild := optBox ]
   set optRow  [ containerChild := optText
               , containerChild := optFra
@@ -417,8 +413,9 @@ editGenerator gen box' (top,dataPath) = do
               , containerChild := tableRow, boxChildPacking tableRow := PackNatural
               , containerBorderWidth := 2
               ]
-  set left'   [ containerChild := left 
-              , frameShadowType := ShadowIn
+  set left'   [ scrolledWindowHscrollbarPolicy := PolicyNever
+              , scrolledWindowVscrollbarPolicy := PolicyAutomatic
+              , scrolledWindowShadowType := ShadowIn
               ]
   set right'  [ containerChild := right 
               , frameShadowType := ShadowIn
@@ -431,20 +428,11 @@ editGenerator gen box' (top,dataPath) = do
               ]
   set box'    [ containerChild := box ]
 
+  scrolledWindowAddWithViewport left' left
+
   {-
     LOGIC
   -}
-  on optCom changed $ do
-    x <- comboBoxGetActiveText optCom
-    opts <- readIORef os
-
-    if x==Nothing then return () 
-    else let (Just t) = x in case unpack t of
-      "New Option..." -> do
-                          modifyIORef os (\x -> x++[("New Option",[""])])
-                          opts' <- readIORef os
-                          editOption optOpt optCom os (getOptionFromName opts' "New Option")
-      x               -> editOption optOpt optCom os (getOptionFromName opts x)
 
   onToolButtonClicked new $ makePage right ts $ Table { title = "New Table", rows = [] }
   onToolButtonClicked save $ saveGen gen nameBox descBuf os ts
@@ -456,9 +444,40 @@ editGenerator gen box' (top,dataPath) = do
 
   widgetShowAll box'
 
-editOption :: VBox -> ComboBox -> IORef [Option] -> Maybe (Option,Int) -> IO ()
-editOption v combo list Nothing = return ()
-editOption v combo list (Just (o,i)) = do
+makeOptionBox :: VBox -> IORef [Option] -> IO ()
+makeOptionBox v list = do
+  mapM_ widgetDestroy =<< containerGetChildren v 
+  {-
+    INITIALIZATION
+  -}
+  optCom <- comboBoxNewText
+  optOpt <- vBoxNew False 0
+  os <- readIORef list
+  {-
+    CONSTRUCTION
+  -}
+  mapM_ (comboBoxAppendText optCom) $ map pack $ (map fst os)++["New Option..."]
+  set v [ containerChild := optCom
+        , containerChild := optOpt
+        ]
+  {-
+    LOGIC
+  -}
+  on optCom changed $ do
+    x <- comboBoxGetActiveText optCom
+    if x==Nothing 
+    then return ()
+    else let (Just t) = x in case unpack t of
+      "New Option..." -> do
+                         modifyIORef list (\x -> x++[("New Option",[""])])
+                         os' <- readIORef list
+                         editOption v list (getOptionFromName os' "New Option")
+      x               -> editOption v list (getOptionFromName os x)
+  widgetShowAll v
+
+editOption :: VBox -> IORef [Option] -> Maybe (Option,Int) -> IO ()
+editOption v list Nothing = return ()
+editOption v list (Just (o,i)) = do
   mapM_ widgetDestroy =<< containerGetChildren v
   {-
     INITIALIZATION
@@ -474,9 +493,12 @@ editOption v combo list (Just (o,i)) = do
 
   row3 <- hBoxNew True 0
   button <- buttonNewWithLabel "Save Option"
+
+  row4 <- hBoxNew True 0
+  del <- buttonNewWithLabel "Delete Option"
   cancel <- buttonNewWithLabel "Cancel"
 
-  box <- vBoxNew False 0
+  box <- vBoxNew True 2
 
   os <- mapM (\x -> do
     e <- entryNew
@@ -494,13 +516,15 @@ editOption v combo list (Just (o,i)) = do
             , spinButtonNumeric := True
             , spinButtonUpdatePolicy := UpdateIfValid
             ]
+  set box   [ containerBorderWidth := 3 ]
   set row1  [ containerChild := label, boxChildPacking label := PackNatural
             , containerChild := entry
             ]
   set row2  [ containerChild := txt
             , containerChild := spin
             ]
-  set row3  [ containerChild := button
+  set row3  [ containerChild := button ]
+  set row4  [ containerChild := del
             , containerChild := cancel
             ]
   set v     [ containerChild := row1, boxChildPacking row1 := PackNatural
@@ -508,26 +532,29 @@ editOption v combo list (Just (o,i)) = do
             , containerChild := row2, boxChildPacking row2 := PackNatural
             , containerChild := update, boxChildPacking update := PackNatural
             , containerChild := row3, boxChildPacking row3 := PackNatural
+            , containerChild := row4, boxChildPacking row4 := PackNatural
             ]
   {-
     LOGIC
   -}
-  on update buttonActivated $ do
+  afterValueSpinned spin $ do 
     name <- entryGetText entry
     opts <- mapM entryGetText os
 
     n <- spinButtonGetValue spin
 
-    editOption v combo list $ Just ((name,take (floor n) $ opts++(repeat "")),i)
+    editOption v list $ Just ((name,take (floor n) $ opts++(repeat "")),i)
   on button buttonActivated $ do
     name <- entryGetText entry
     opts <- mapM entryGetText os
 
     xs <- readIORef list
     writeIORef list $ (take i xs)++[(name,opts)]++(drop (i+1) xs)
-    mapM_ widgetDestroy =<< containerGetChildren v
-    comboBoxSetActive combo (-1)
-  on cancel buttonActivated $ mapM_ widgetDestroy =<< containerGetChildren v
+    makeOptionBox v list
+  on cancel buttonActivated $ makeOptionBox v list
+  on del buttonActivated $ do
+    modifyIORef list (delete o)
+    makeOptionBox v list
 
   widgetShowAll v
 

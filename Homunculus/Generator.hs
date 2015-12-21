@@ -158,14 +158,12 @@ generateFile fp = do
         f (Just t) g  = generate t ["All"] g
 
 --Clears out the box and creates the Generator UI within it
-makeGenerator :: FilePath -> VBox -> IO ()
-makeGenerator dataPath box = do
-  --Have to clear the box before doing anything else
-  mapM_ widgetDestroy =<< containerGetChildren box
-
+makeGenerator :: FilePath -> IO VBox
+makeGenerator dataPath = do
   {-
     INITIALIZATION
   -}
+  box <- vBoxNew False 5
   top <- hBoxNew False 2
   bottom <- frameNew
   {-
@@ -174,6 +172,7 @@ makeGenerator dataPath box = do
   --set bottom  [ containerBorderWidth := 5 ]
   set box     [ containerChild := top, boxChildPacking top := PackNatural
               , containerChild := bottom
+              , containerBorderWidth := 5
               ]
 
   {-
@@ -182,6 +181,7 @@ makeGenerator dataPath box = do
   updateTop top dataPath bottom
 
   widgetShowAll box
+  return box
 
 updateTop :: HBox -> FilePath -> Frame -> IO ()
 updateTop top dataPath bottom = do

@@ -1,8 +1,9 @@
 module Main where
 
 import Homunculus.Sidebar
-import Homunculus.Generator
 import Homunculus.Parser
+import Homunculus.Toolbox
+import Homunculus.Generator
 
 import Graphics.UI.Gtk
 import System.Directory (getAppUserDataDirectory)
@@ -53,24 +54,31 @@ start = do
   file <- menuItemNewWithLabel "File"
   quit <- menuItemNewWithLabel "Quit"
 
+  viewMenu <- menuNew
+  view <- menuItemNewWithLabel "View"
+  side <- checkMenuItemNewWithLabel "Sidebar"
+
   vbox <- vBoxNew False 0
   hbox <- hBoxNew False 0
 
   sideBox <- vBoxNew False 0
-  genBox <- vBoxNew False 5
+  toolBox <- vBoxNew False 0
 
   {-
     CONSTRUCTION
   -}
 
   --I plan on adding more later, so I'm going to go ahead and use mapM_
-  mapM_ (menuShellAppend menu) [file]
+  mapM_ (menuShellAppend menu) [file,view]
   mapM_ (menuShellAppend fileMenu) [quit]
+  mapM_ (menuShellAppend viewMenu) [side]
 
+  set side    [ checkMenuItemActive := True ]
   set file    [ menuItemSubmenu := fileMenu ]
-  set genBox  [ containerBorderWidth := 5 ]
+  set view    [ menuItemSubmenu := viewMenu ]
+  set toolBox [ containerBorderWidth := 5 ]
   set hbox    [ containerChild := sideBox, boxChildPacking sideBox := PackNatural
-              , containerChild := genBox 
+              , containerChild := toolBox
               ]
   set vbox    [ containerChild := menu, boxChildPacking menu := PackNatural
               , containerChild := hbox
@@ -86,8 +94,11 @@ start = do
   dataPath <- getAppUserDataDirectory "homunculus"
 
   makeSidebar dataPath sideBox
-  makeGenerator dataPath genBox
+  makeToolbox dataPath toolBox
 
+  on side checkMenuItemToggled $ do
+    b <- checkMenuItemGetActive side
+    set sideBox [ widgetVisible := b ]
   on quit menuItemActivated mainQuit
   on window objectDestroy mainQuit
 

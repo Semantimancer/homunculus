@@ -704,34 +704,60 @@ showTable v t [new,del] = do
     RightButton <- eventButton
     liftIO $ do
       m <- menuNew
-      new <- menuItemNewWithLabel "New Row"
-      del <- menuItemNewWithLabel "Delete Row"
+      new <- menuItemNewWithLabel "New"
+      cut <- menuItemNewWithLabel "Cut"
+      cop <- menuItemNewWithLabel "Copy"
+      pas <- menuItemNewWithLabel "Paste"
+      del <- menuItemNewWithLabel "Delete"
       
-      menuShellAppend m new
-      menuShellAppend m del
+      mapM_ (menuShellAppend m) [new,cut,cop,pas,del]
 
-      on new menuItemActivate $ do
-        _ <- listStoreAppend model (1,"")
-        return ()
-      on del menuItemActivate $ deleteItem view model
+      tree <- treeViewGetSelection view
+      sel <- treeSelectionGetSelectedRows tree
+      let [[index]] = if length sel>0 then sel else [[-1]]
+
+      clipboard <- clipboardGet selectionClipboard
+
+      on new menuItemActivate $ listStoreInsert model (index+1) (1,"")
+      on cut menuItemActivate $ 
+        if index==(-1)
+        then return ()
+        else do
+          v <- listStoreGetValue model index
+          clipboardSetText clipboard (show v)
+          listStoreRemove model index
+      on cop menuItemActivate $
+        if index==(-1)
+        then return ()
+        else do
+          v <- listStoreGetValue model index
+          clipboardSetText clipboard (show v)
+      on pas menuItemActivate $ clipboardRequestText clipboard (pasteRow model index)
+      on del menuItemActivate $ 
+        if index==(-1) then return () else listStoreRemove model index
       menuPopup m Nothing
       widgetShowAll m
   onToolButtonClicked new $ do
     _ <- listStoreAppend model (1,"")
     return ()
-  onToolButtonClicked del $ deleteItem view model
+  onToolButtonClicked del $ do
+    tree <- treeViewGetSelection view
+    sel <- treeSelectionGetSelectedRows tree
+    if length sel>0
+    then let [[index]] = sel in listStoreRemove model index else return ()
 
   mapM_ (treeViewAppendColumn view) [col1,col2]
 
   widgetShowAll v
   return model
 
-deleteItem :: TreeView -> ListStore Row -> IO ()
-deleteItem view model = do
-  tree <- treeViewGetSelection view
-  sel <- treeSelectionGetSelectedRows tree
-  if (length sel>0) 
-  then do
-    let [[index]] = sel
-    listStoreRemove model index
-  else return ()
+readRow :: String -> Maybe Row
+readRow str = case reads str of
+  [(x,"")]  -> Just x
+  _         -> Nothing
+
+pasteRow :: ListStore Row -> Int -> Maybe String -> IO ()
+pasteRow model index Nothing = return ()
+pasteRow model index (Just s) = case readRow s of
+  Just r  -> listStoreInsert model (index+1) r
+  Nothing -> return ()

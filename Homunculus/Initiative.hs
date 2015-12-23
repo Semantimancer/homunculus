@@ -9,10 +9,15 @@ data Row = Row { name :: String
                , initiative :: Int
                , notes :: String
                }
-  deriving (Eq)
+  deriving (Eq,Read,Show)
 
 instance Ord Row where
   a<=b = (initiative a)>=(initiative b)
+
+readRow :: String -> Maybe Row
+readRow str = case reads str of
+  [(x,"")]  -> Just x
+  _         -> Nothing
 
 makeInitiative :: IO VBox
 makeInitiative = do
@@ -144,22 +149,38 @@ makeTreeView model = do
     liftIO $ do
       m <- menuNew
       new <- menuItemNewWithLabel "New"
+      cut <- menuItemNewWithLabel "Cut"
       cop <- menuItemNewWithLabel "Copy"
       pas <- menuItemNewWithLabel "Paste"
       del <- menuItemNewWithLabel "Delete"
-      srt <- menuItemNewWithLabel "Sort"
+      srt <- menuItemNewWithLabel "Sort List"
 
-      mapM_ (menuShellAppend m) [new,cop,pas,del,srt]
+      mapM_ (menuShellAppend m) [new,cut,cop,pas,del,srt]
 
       tree <- treeViewGetSelection view
       sel <- treeSelectionGetSelectedRows tree
       let [[index]] = if (length sel>0) then sel else [[-1]]
 
+      clipboard <- clipboardGet selectionClipboard
+
       on new menuItemActivate $ do
         i <- randomRIO (1,20)
-        _ <- listStoreAppend model $ Row { name = "", initiative = i, notes = "" }
-        return ()
-      on del menuItemActivate $ 
+        listStoreInsert model (index+1) $ Row { name = "", initiative = i, notes = "" }
+      on cut menuItemActivate $
+        if index==(-1)
+        then return ()
+        else do
+          v <- listStoreGetValue model index
+          clipboardSetText clipboard (show v)
+          listStoreRemove model index
+      on cop menuItemActivate $ 
+        if index==(-1) 
+        then return ()
+        else do
+          v <- listStoreGetValue model index 
+          clipboardSetText clipboard (show v)
+      on pas menuItemActivate $ clipboardRequestText clipboard (pasteRow model index) 
+      on del menuItemActivate $  
         if index==(-1) then return () else listStoreRemove model index
       on srt menuItemActivate $ do
         list <- listStoreToList model
@@ -171,3 +192,9 @@ makeTreeView model = do
 
   widgetShowAll view'
   return view'
+
+pasteRow :: ListStore Row -> Int -> Maybe String -> IO ()
+pasteRow model index Nothing = return ()
+pasteRow model index (Just s) = case readRow s of
+  Just r  -> listStoreInsert model (index+1) r
+  Nothing -> return ()

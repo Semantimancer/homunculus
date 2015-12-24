@@ -8,6 +8,7 @@ import System.Random
 data Row = Row { name :: String
                , initiative :: Int
                , notes :: String
+               , start :: Bool
                }
   deriving (Eq,Read,Show)
 
@@ -35,6 +36,10 @@ makeInitiative = do
   clear <- toolButtonNewFromStock stockClear
   sep <- separatorToolItemNew
   next <- toolButtonNewFromStock stockMediaNext
+
+  bottom <- hBoxNew False 5
+  rLabel <- labelNew $ Just "Round Counter:" 
+  round <- spinButtonNewWithRange 1.0 999.0 1.0
   {-
     CONSTRUCTION
   -}
@@ -47,15 +52,25 @@ makeInitiative = do
               , toolItemExpand := True
               ]
   set toolbar [ toolbarStyle := ToolbarBoth ]
+  set round   [ spinButtonSnapToTicks := True
+              , spinButtonNumeric := True
+              , spinButtonUpdatePolicy := UpdateIfValid
+              ]
+  set bottom  [ containerChild := rLabel, boxChildPacking rLabel := PackNatural
+              , containerChild := round
+              , containerBorderWidth := 5
+              ]
   set vbox    [ containerChild := toolbar, boxChildPacking toolbar := PackNatural
               , containerChild := tree
+              , containerChild := bottom, boxChildPacking bottom := PackNatural
               ]
   {-
     LOGIC
   -}
   onToolButtonClicked new $ do
     i <- randomRIO (1,20)
-    _ <- listStoreAppend model $ Row { name = "", initiative = i, notes = "" }
+    len <- listStoreGetSize model
+    _ <- listStoreAppend model $ Row "" i "" (len==0)
     return ()
   onToolButtonClicked order $ do
     list <- listStoreToList model
@@ -69,6 +84,13 @@ makeInitiative = do
           []      -> []
           (x:xs)  -> xs++[x]
     mapM_ (listStoreAppend model) list'
+    if list'==[] 
+    then return ()
+    else if start $ head list'
+         then do
+          v <- spinButtonGetValue round
+          spinButtonSetValue round (v+1.0)
+         else return ()
 
 
   widgetShowAll vbox
@@ -87,6 +109,7 @@ makeTreeView model = do
   col2 <- treeViewColumnNew
   col3 <- treeViewColumnNew
 
+  renderer0 <- cellRendererToggleNew
   renderer1 <- cellRendererTextNew
   renderer2 <- cellRendererTextNew
   renderer3 <- cellRendererTextNew
@@ -94,12 +117,17 @@ makeTreeView model = do
   {-
     CONSTRUCTION
   -}
+  set col0  [ treeViewColumnResizable := True
+            , treeViewColumnFixedWidth := 75
+            , treeViewColumnTitle := "Round Start"
+            ]
   set col1  [ treeViewColumnResizable := True
             , treeViewColumnFixedWidth := 100
             , treeViewColumnTitle := "Name"
             ]
-  set col2  [ treeViewColumnResizable := False
+  set col2  [ treeViewColumnResizable := True
             , treeViewColumnTitle := "Initiative"
+            , treeViewColumnFixedWidth := 75
             ]
   set col3  [ treeViewColumnResizable := False
             , treeViewColumnExpand := True
@@ -116,6 +144,7 @@ makeTreeView model = do
             , scrolledWindowVscrollbarPolicy := PolicyAutomatic
             ]
 
+  treeViewColumnPackStart col0 renderer0 False
   treeViewColumnPackStart col1 renderer1 False
   treeViewColumnPackStart col2 renderer2 True
   treeViewColumnPackStart col3 renderer3 True
@@ -126,6 +155,8 @@ makeTreeView model = do
     LOGIC
   -}
   --This describes what each cell actually displays
+  cellLayoutSetAttributes col0 renderer0 model $
+    \row -> [ cellToggleActive := start row, cellToggleRadio := True ]
   cellLayoutSetAttributes col1 renderer1 model $
     \row -> [ cellText := name row, cellTextEditable := True ]
   cellLayoutSetAttributes col2 renderer2 model $
@@ -134,6 +165,12 @@ makeTreeView model = do
     \row -> [ cellText := notes row, cellTextEditable := True ]
 
   --React to user input
+  on renderer0 cellToggled $ \i' -> do
+    l <- listStoreToList model
+    listStoreClear model
+    mapM_ (\r -> listStoreAppend model $ r { start = False }) l
+    let i = read i' :: Int
+    listStoreSetValue model i $ (l!!i) { start = True }
   on renderer1 edited $ \[i] str -> do
     val <- listStoreGetValue model i
     listStoreSetValue model i val { name = str }
@@ -165,7 +202,7 @@ makeTreeView model = do
 
       on new menuItemActivate $ do
         i <- randomRIO (1,20)
-        listStoreInsert model (index+1) $ Row { name = "", initiative = i, notes = "" }
+        listStoreInsert model (index+1) $ Row "" i "" (index==(-1))
       on cut menuItemActivate $
         if index==(-1)
         then return ()

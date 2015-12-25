@@ -434,7 +434,9 @@ editGenerator gen box' (top,dataPath) = do
     LOGIC
   -}
 
-  onToolButtonClicked new $ makePage right ts $ Table { title = "New Table", rows = [] }
+  onToolButtonClicked new $ do
+    makePage right ts $ Table { title = "New Table", rows = [] }
+    notebookSetCurrentPage right (-1)
   onToolButtonClicked save $ saveGen gen nameBox descBuf os ts
   onToolButtonClicked exit $ do
     mapM_ widgetDestroy =<< containerGetChildren box'
@@ -601,14 +603,23 @@ makePage right ts x = do
 
   new <- toolButtonNewFromStock stockNew
   del <- toolButtonNewFromStock stockDelete
+  sep <- separatorToolItemNew
   lb <- toolButtonNewFromStock stockGotoFirst
   rb <- toolButtonNewFromStock stockGotoLast
 
   {-
     CONSTRUCTION
   -}
+  set rb    [ widgetHasTooltip := True, widgetTooltipText := Just "Move Table Right" ]
+  set lb    [ widgetHasTooltip := True, widgetTooltipText := Just "Move Table Left" ]
+  set sep   [ separatorToolItemDraw := False
+            , toolItemExpand := True
+            ]
+  set del   [ widgetHasTooltip := True, widgetTooltipText := Just "Delete Row" ]
+  set new   [ widgetHasTooltip := True, widgetTooltipText := Just "New Row" ]
   set bar   [ containerChild := new
             , containerChild := del
+            , containerChild := sep
             , containerChild := lb
             , containerChild := rb
             ]

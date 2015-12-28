@@ -7,7 +7,7 @@ import Data.Char (isAlphaNum)
 import Data.IORef
 import Data.List
 import Data.List.Utils (replace)
-import Data.Text (pack,unpack)
+import Data.Text (pack,unpack, Text)
 import Graphics.UI.Gtk hiding (Table)
 import System.Directory
 import System.FilePath ((</>))
@@ -151,7 +151,7 @@ dummySeparator = Generator { name = "--------------"
 
 generateFile :: FilePath -> IO String
 generateFile fp = do
-  file <- readFile fp 
+  file <- readFile fp
   g <- newStdGen
   return $ f (readGenerator file) g
   where f Nothing _   = "Error: Failed to read "++fp
@@ -324,12 +324,17 @@ runGenerator gen box' = do
   on genButton buttonActivated $ do
     g <- newStdGen
     tab <- comboBoxGetActiveText tabCombo
-    options <- mapM comboBoxGetActiveText opts
-    set txt [ textBufferText := generate gen (getOpts (tab:options)) g ]
+    os <- mapM comboBoxGetActiveText opts
+    let opts = getOpts g $ (tab,[]):(zip os (map snd $ options gen))
+    set txt [ textBufferText := generate gen opts g ]
   widgetShowAll box
-  where getOpts []            = []
-        getOpts (Nothing:xs)  = getOpts xs
-        getOpts ((Just x):xs) = (unpack x) : getOpts xs
+
+--After pulling in user-made choices, determine any other options randomly
+getOpts :: StdGen -> [(Maybe Text,[String])] -> [String]
+getOpts _ [] = []
+getOpts g ((Nothing,os):xs) = (os!!(i `mod` length os)) : getOpts g' xs
+  where (i,g') = random g :: (Int,StdGen)
+getOpts g ((Just x,_):xs) = (unpack x) : getOpts g xs
 
 editGenerator :: Generator -> Frame -> (HBox,FilePath) -> IO ()
 editGenerator gen box' (top,dataPath) = do

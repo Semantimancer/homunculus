@@ -74,14 +74,18 @@ makeNameWidget = do
             if bool then return $ acc++strs else return acc
             ) [] cs
     let names = if ns==[] then ["Error: Empty List"] else ns
-    radio <- toggleButtonGetActive markov
-    g <- newStdGen
-    i <- randomRIO (0,length names-1)
-    if radio then entrySetText name $ head (runMulti 3 names i g)
-             else entrySetText name (names!!i)
+    --radio <- toggleButtonGetActive markov
+    entrySetText name =<< randomName names =<< toggleButtonGetActive markov
 
   widgetShowAll exp
   return exp
+
+randomName :: [String] -> Bool -> IO String
+randomName names runMarkov = do
+  i <- randomRIO (0,length names-1)
+  g <- newStdGen --This shouldn't generate unless it needs to, thanks to lazy evaluation
+  if runMarkov then return $ head $ runMulti 3 names i g
+               else return $ names!!i
 
 splitEvery :: Int -> [a] -> [[a]]
 splitEvery _ [] = []

@@ -1,9 +1,10 @@
 module Main where
 
-import Homunculus.Sidebar
-import Homunculus.Parser
-import Homunculus.Toolbox
 import Homunculus.Generator
+import Homunculus.Names
+import Homunculus.Parser
+import Homunculus.Sidebar
+import Homunculus.Toolbox
 
 import Graphics.UI.Gtk
 import System.Directory (getAppUserDataDirectory)
@@ -15,18 +16,27 @@ main = main' =<< getArgs
 
 main' :: [String] -> IO ()
 main' args = case args of
-  []            -> start
-  ("-h":_)      -> putStrLn helpMessage
-  ("--help":_)  -> putStrLn helpMessage
-  ("-g":[])     -> putStrLn "No generator file given!"
-  ("-g":x:_)    -> putStrLn =<< generateFile x
-  ("-t":_)      -> makeGeneratorTest >> putStrLn "Generator file created successfully."
-  ("-r":xs)     -> do
-                   g <- newStdGen
-                   putStrLn $ fst $ head $ parse (script ["All"] g) (concat xs)
-  (x:_)         -> putStrLn $ concat ["Invalid option -- '",x
-                                     ,"Try 'homunculus -h' for more information."]
+  []              -> start
+  ("-h":_)        -> putStrLn helpMessage
+  ("--help":_)    -> putStrLn helpMessage
+  ("-g":[])       -> putStrLn "No generator file given!"
+  ("-g":x:_)      -> putStrLn =<< generateFile x
+  ("-t":_)        -> makeGeneratorTest >> putStrLn "Generator file created successfully."
+  ("-r":xs)       -> do
+                      g <- newStdGen
+                      putStrLn $ fst $ head $ parse (script ["All"] g) (concat xs)
+  ("-nM":xs)      -> runMarkov xs
+  ("-n":"-M":xs)  -> runMarkov xs
+  ("-n":xs)       -> do
+                      fs <- mapM readFile xs
+                      putStrLn =<< randomName (lines $ concat fs) False
+  (x:_)           -> putStrLn $ concat ["Invalid option -- '",x
+                                      ,"Try 'homunculus -h' for more information."]
   where makeGeneratorTest = writeFile "Test.gen" $ show testGen
+        runMarkov xs = do
+          fs <- mapM readFile xs
+          g <- newStdGen
+          putStrLn =<< randomName (lines $ concat fs) True
 
 helpMessage :: String
 helpMessage = concat ["Usage: homunculus [OPTION]... [FILE]...\n\n"
@@ -34,6 +44,7 @@ helpMessage = concat ["Usage: homunculus [OPTION]... [FILE]...\n\n"
                      ,"  -h or --help   Print this message.\n"
                      ,"  -g <path>      Generate a result from the table at <path>\n"
                      ,"                   (Options will be unset at this time)\n"
+                     ,"  -n <files>     Generate a name from the <files>\n"
                      ,"  -r <line>      Generate a result from <line>\n"
                      ,"                   (Good way to roll dice)\n"
                      ,"  -t             Create a generator for testing purposes\n"

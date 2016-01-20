@@ -17,28 +17,30 @@ import System.Random
   The basic (functional) code
 -}
 
-data Generator = Generator { name, description :: String    -- Displayed to user
-                           , tables :: [Table]              -- Meat & Potatoes
-                           , options :: [Option]            -- User-set options
-                           }
+data Generator = Generator { name, description :: String
+                           , tables :: [Table]
+                           , options :: [Option] }
   deriving (Read,Show,Eq,Ord)
 
 type Option = (String,[String])
 
-data Table = Table { title :: String                        -- Displayed to user
-                   , rows :: [Row]                          -- Actual Information
+data Table = Table { title :: String
+                   , rows :: [Row]
                    }
   deriving (Read,Show,Eq,Ord)
 
 type Row = (Int,String)
 
 {-
-  I need one extra parser, which I can't include in Homunculus.Parser for reasons of
-  dependency. This parser goes through the string and pulls out table references in the
-  format "<TableName>" and then generates a result from THAT table, substituting it in.
+  I need one extra parser, which I can't include in 
+  Homunculus.Parser for reasons of dependency. This parser goes 
+  through the string and pulls out table references in the format 
+  "<TableName>" and then generates a result from THAT table, 
+  substituting it in.  
 
-  The idea is that this should be called before the other parsers, so that when the
-  actual generate' function is called, all of that has already been sorted out already.
+  The idea is that this should be called before the other parsers, 
+  so that when the actual generate' function is called, all of that 
+  has already been sorted out already.
 -}
 tableRef :: [Table] -> [String] -> StdGen -> Parser String
 tableRef ts opts g = do
@@ -59,23 +61,29 @@ tableRef' ts opts g = do
 --Generate function decides what tables to use during the generation
 generate :: Generator -> [String] -> StdGen -> String
 generate g (ts:opts) gen = case ts of
-  "All" -> concatMap (\t -> concat [title t,"\n     "
-                                   ,(generate' (Just t) (tables g) opts gen),"\n"]
-                      ) $ tables g
-  x     -> generate' (getTableFromName (tables g) x) (tables g) opts gen
+  "All" -> concatMap 
+            (\t -> concat [title t,"\n     "
+                         ,(generate' (Just t) (tables g) opts gen)
+                         ,"\n"]
+            ) $ tables g
+  x     -> generate' 
+            (getTableFromName (tables g) x) (tables g) opts gen
 
---Sub-function actually generates, based on a single Table rather than a whole Generator
+--Sub-function actually generates
 generate' :: Maybe Table -> [Table] -> [String] -> StdGen -> String
 generate' Nothing _ _ _ = "Error: No Table With That Name!"
 generate' (Just t) ts' opts g = case parse (script opts g') full of
   [(x,[])]  -> replace "\\\\" "\n" x
   []        -> "Error in parse function!"
-  where --This is the full string, with all table references already taken care of
-        full = case parse (tableRef ts opts g) $ list !! (i `mod` length list) of
+  where --This is the full string, with all table references 
+        --already taken care of
+        full = case parse (tableRef ts opts g) $ list 
+                    !! (i `mod` length list) 
+               of
                   [(x,[])]  -> x
                   []        -> "Error in tableRef function!"
         list = concatMap (uncurry replicate) $ rows t
-        --So after a table has been called, it can't be called again. No recursion.
+        --After a table is called, it can't be called again.
         ts = filter (/=t) ts'
         (i,g') = random g :: (Int,StdGen)
 
@@ -110,40 +118,35 @@ testGen = Generator { name = "Test"
                     , options = [("Option 1",["A","B","C"])]
                 }
   where testTable = Table { title = "TestTable"
-                          , rows = [(3,"Test (Weight 3)")
-                                   ,(2,"Test (Weight 2)")
-                                   ,(1,"Test (Weight 1)")
-                                   ,(1,"There are 1d4+7 goblins")
-                                   ,(1,"This should be 6: 2*3")
-                                   ,(1,"It hails in a radius of d100*100ft")
-                                   ,(1,"Option A is set? {A=True|Else=False}")
-                                   ,(1,"Option B is set? {B=True|Else=False}")
-                                   ,(1,"Option C is set? {C=True|Else=False}")
-                                   ]
+                          , rows = []
                           }
 
 {-
-  Dummy Generators will never actually be used as a generator, but serve as a way for
-  users to send commands using the same interface as they would to select a generator
+  Dummy Generators will never actually be used as a generator, but 
+  serve as a way for users to send commands using the same 
+  interface as they would to select a generator
 -}
 
 dummyNewGen :: Generator
 dummyNewGen = Generator { name = "New Generator..."
-                        , description = "Dummy-Generator used to create a new one."
+                        , description = ""
                         , tables = [], options = []
                         }
 
 dummyMakeNewGen :: Generator
-dummyMakeNewGen = Generator { name = "New Generator"
-                            , description = concat ["To finish your new generator, edit "
-                                                   ,"this one and hit 'Save'"]
-                            , tables = [], options = []
-                            }
+dummyMakeNewGen = 
+  Generator { name = "New Generator"
+            , description = concat ["To finish your new "
+                                   ,"generator, edit this one "
+                                   ,"and hit 'Save'"]
+            , tables = [], options = []
+            }
 
 dummySeparator :: Generator
-dummySeparator = Generator { name = "--------------"  
-                           , description = "", tables = [], options = [] 
-                           }
+dummySeparator = 
+  Generator { name = "--------------"  
+            , description = "", tables = [], options = [] 
+            }
 
 {-
   IO code (mostly graphics-related)
@@ -170,7 +173,8 @@ makeGenerator dataPath = do
     CONSTRUCTION
   -}
   --set bottom  [ containerBorderWidth := 5 ]
-  set box     [ containerChild := top, boxChildPacking top := PackNatural
+  set box     [ containerChild := top
+              , boxChildPacking top := PackNatural
               , containerChild := bottom
               , containerBorderWidth := 5
               ]
@@ -442,7 +446,9 @@ editGenerator gen box' (top,dataPath) = do
   onToolButtonClicked new $ do
     makePage right ts $ Table { title = "New Table", rows = [] }
     notebookSetCurrentPage right (-1)
-  onToolButtonClicked save $ saveGen gen nameBox descBuf os ts
+  onToolButtonClicked save $ do
+    updateTop top dataPath box'
+    saveGen gen nameBox descBuf os ts
   onToolButtonClicked exit $ do
     mapM_ widgetDestroy =<< containerGetChildren box'
     updateTop top dataPath box'
@@ -476,9 +482,9 @@ makeOptionBox v list = do
     then return ()
     else let (Just t) = x in case unpack t of
       "New Option..." -> do
-                         modifyIORef list (\x -> x++[("New Option",[""])])
-                         os' <- readIORef list
-                         editOption v list (getOptionFromName os' "New Option")
+          modifyIORef list (\x -> x++[("New Option",[""])])
+          os' <- readIORef list
+          editOption v list (getOptionFromName os' "New Option")
       x               -> editOption v list (getOptionFromName os x)
   widgetShowAll v
 

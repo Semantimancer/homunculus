@@ -259,8 +259,12 @@ runGenerator gen box' = do
   box <- hBoxNew True 2
   left' <- scrolledWindowNew Nothing Nothing
   left <- vBoxNew False 5
+  right' <- vBoxNew False 0
   right <- frameNew
   view <- textViewNew
+  copy' <- hBoxNew False 0
+  copy <- buttonNewWithLabel "Copy To Clipboard"
+  clipboard <- clipboardGet selectionClipboard
 
   txt <- textViewGetBuffer view
 
@@ -298,28 +302,34 @@ runGenerator gen box' = do
     ) $ options gen
 
   set descLabel [ labelWrap := True ]
-  set left  [ containerBorderWidth := 10
-            , containerChild := descLabel, boxChildPacking descLabel := PackNatural
-            , containerChild := optBox, boxChildPacking optBox := PackNatural
-            , containerChild := genButton, boxChildPacking genButton := PackNatural
-                                         , boxChildPackType genButton := PackEnd
-            ]
-  set view  [ textViewEditable := False
-            , textViewWrapMode := WrapWordChar
-            , textViewLeftMargin := 3
-            , textViewRightMargin := 3
-            ]
-  set right [ frameShadowType := ShadowIn
-            , containerChild := view ]
-  set left' [ scrolledWindowHscrollbarPolicy := PolicyNever
-            , scrolledWindowVscrollbarPolicy := PolicyAutomatic
-            , scrolledWindowShadowType := ShadowEtchedOut
-            ]
+  set left    [ containerBorderWidth := 10
+              , containerChild := descLabel, boxChildPacking descLabel := PackNatural
+              , containerChild := optBox, boxChildPacking optBox := PackNatural
+              , containerChild := genButton, boxChildPacking genButton := PackNatural
+                                           , boxChildPackType genButton := PackEnd
+              ]
+  set view    [ textViewEditable := False
+              , textViewWrapMode := WrapWordChar
+              , textViewLeftMargin := 3
+              , textViewRightMargin := 3
+              ]
+  set copy'   [ containerChild := copy, boxChildPacking copy := PackNatural
+              , boxChildPackType copy := PackEnd 
+              ]
+  set right'  [ containerChild := view, boxChildPacking view := PackGrow
+              , containerChild := copy', boxChildPacking copy' := PackNatural
+              , containerBorderWidth := 3
+              ]
+  set right   [ frameShadowType := ShadowIn, containerChild := right' ]
+  set left'   [ scrolledWindowHscrollbarPolicy := PolicyNever
+              , scrolledWindowVscrollbarPolicy := PolicyAutomatic
+              , scrolledWindowShadowType := ShadowEtchedOut
+              ]
   scrolledWindowAddWithViewport left' left
-  set box   [ containerChild := left'
-            , containerChild := right
-            ]
-  set box'  [ containerChild := box ]
+  set box     [ containerChild := left'
+              , containerChild := right
+              ]
+  set box'    [ containerChild := box ]
 
   {-
     LOGIC
@@ -331,6 +341,9 @@ runGenerator gen box' = do
     os <- mapM comboBoxGetActiveText opts
     let opts = getOpts g $ (tab,[]):(zip os (map snd $ options gen))
     set txt [ textBufferText := generate gen opts g ]
+  on copy buttonActivated $ do
+    (start,end) <- textBufferGetBounds txt
+    clipboardSetText clipboard =<< (textBufferGetText txt start end True :: IO String)
   widgetShowAll box
 
 --After pulling in user-made choices, determine any other options randomly

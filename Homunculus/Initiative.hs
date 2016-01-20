@@ -216,9 +216,11 @@ makeTreeView model = do
         else do
           v <- listStoreGetValue model index 
           clipboardSetText clipboard (show v)
-      on pas menuItemActivate $ clipboardRequestText clipboard (pasteRow model index) 
+      on pas menuItemActivate $ clipboardRequestText clipboard 
+                                  (pasteRow model index) 
       on del menuItemActivate $  
-        if index==(-1) then return () else listStoreRemove model index
+        if index==(-1) then return () 
+                       else listStoreRemove model index
       on srt menuItemActivate $ do
         list <- listStoreToList model
         listStoreClear model

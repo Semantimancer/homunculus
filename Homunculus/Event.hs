@@ -1,5 +1,6 @@
 module Homunculus.Event where
 
+import Control.Monad (filterM)
 import Control.Monad.IO.Class
 import Graphics.UI.Gtk
 import System.Random (randomRIO)
@@ -39,43 +40,69 @@ makeEventWidget' v events = do
   button <- buttonNewWithLabel "What Happens?"
   edit <- buttonNewWithLabel "Edit"
 
-  ls <- mapM (\x -> labelNew $ Just $ title x) events
+  --ls <- mapM (\x -> labelNew $ Just $ title x) events
+  ls <- mapM (\x -> checkButtonNewWithLabel $ title x) events
   ps <- mapM (\_ -> progressBarNew) events
+
   {-
     CONSTRUCTION
   -}
   mapM_ (\(l,p,e) -> do
-      v <- eventBoxNew
-      s <- hSeparatorNew
+    v <- eventBoxNew
+    s <- hSeparatorNew
 
-      set p   [ progressBarFraction := 1.0
-              , progressBarText := ""
-              ]
-      set v   [ containerChild := p
-              , eventBoxVisibleWindow := False
-              ]
-      set box [ containerChild := l, boxChildPacking l := PackNatural
-              , containerChild := v, boxChildPacking v := PackNatural
-              , containerChild := s, boxChildPacking s := PackNatural
-              ]
+    set l   [ toggleButtonActive := True ]
+    set p   [ progressBarFraction := 1.0
+            , progressBarText := ""
+            ]
+    set v   [ containerChild := p
+            , eventBoxVisibleWindow := False
+            ]
+    set box [ containerChild := l, boxChildPacking l := PackNatural
+            , containerChild := v, boxChildPacking v := PackNatural
+            , containerChild := s, boxChildPacking s := PackNatural
+            ]
 
-      on v buttonPressEvent $ tryEvent $ do
-        LeftButton <- eventButton
-        liftIO $ set p [ progressBarFraction := 1.0 ]
+    on v buttonPressEvent $ tryEvent $ do
+        RightButton <- eventButton
+        liftIO $ do
+          m <- menuNew
+          plus1 <- menuItemNewWithLabel "Add 1"
+          reset <- menuItemNewWithLabel "Reset"
+
+          mapM_ (menuShellAppend m) [plus1,reset]
+
+          on plus1 menuItemActivate $ do
+            x <- progressBarGetFraction p 
+            set p [ progressBarFraction := x+(decr e) ]
+          on reset menuItemActivate $ 
+            set p [ progressBarFraction := 1.0 ]
+          menuPopup m Nothing
+          widgetShowAll m
     ) $ zip3 ls ps events
 
-  set row [ containerChild := button, boxChildPacking button := PackGrow
-          , containerChild := edit, boxChildPacking edit := PackNatural
+  set row [ containerChild := button
+          , boxChildPacking button := PackGrow
+          , containerChild := edit
+          , boxChildPacking edit := PackNatural
           ]
-  set box [ containerChild := row, boxChildPacking row := PackNatural ]
-  set v   [ containerChild := box, boxChildPacking box := PackNatural ]
+  set box [ containerChild := row
+          , boxChildPacking row := PackNatural 
+          ]
+  set v   [ containerChild := box
+          , boxChildPacking box := PackNatural 
+          ]
   {-
     LOGIC
   -}
   on button buttonActivated $ do
-    n <- randomRIO (0,(length events)-1)
-    frac <- progressBarGetFraction (ps!!n)
-    progressBarSetFraction (ps!!n) $ frac-(decr $ events!!n)
+    ps' <- filterM (\(x,_,_) -> toggleButtonGetActive x)
+            $ zip3 ls ps events
+    n <- randomRIO (0,length ps'-1)
+
+    let (_,p,e) = ps'!!n
+    frac <- progressBarGetFraction p
+    progressBarSetFraction p $ frac-(decr e)
   on edit buttonActivated $ editEventWidget v events
 
   widgetShowAll v
@@ -99,24 +126,31 @@ editEventWidget v events = do
     CONSTRUCTION
   -}
   mapM_ (\(e,s) -> do
-      b <- vBoxNew False 0
-      r <- hBoxNew True 0
-      l <- labelNew $ Just "Steps: "
+    b <- vBoxNew False 0
+    r <- hBoxNew True 0
+    l <- labelNew $ Just "Steps: "
 
-      set r   [ containerChild := l
-              , containerChild := s
-              ]
-      set b   [ containerChild := e, boxChildPacking e := PackNatural
-              , containerChild := r, boxChildPacking r := PackNatural
-              ]
-      set box [ containerChild := b, boxChildPacking b := PackNatural ]
+    set r   [ containerChild := l
+            , containerChild := s
+            ]
+    set b   [ containerChild := e
+            , boxChildPacking e := PackNatural
+            , containerChild := r
+            , boxChildPacking r := PackNatural
+            ]
+    set box [ containerChild := b
+            , boxChildPacking b := PackNatural 
+            ]
     ) $ zip es ss
   set row [ containerChild := button
           , containerChild := cancel
           ]
-  set v   [ containerChild := box, boxChildPacking box := PackNatural
-          , containerChild := new, boxChildPacking new := PackNatural
-          , containerChild := row, boxChildPacking row := PackNatural
+  set v   [ containerChild := box
+          , boxChildPacking box := PackNatural
+          , containerChild := new
+          , boxChildPacking new := PackNatural
+          , containerChild := row
+          , boxChildPacking row := PackNatural
           ]
   {-
     LOGIC
@@ -134,38 +168,27 @@ editEventWidget v events = do
     makeEventWidget' v $ map newEvent (zip es' ss')
   on cancel buttonActivated $ makeEventWidget' v events
   widgetShowAll v
-  where newEvent (x,y) = Event { title = x, tooltip = "", decr = 1/y }
+  where newEvent (x,y) = Event x "" (1/y)
         blankEvent = Event { title = "", tooltip = "", decr = 0.5 }
 
-data Event = Event { title :: String    --Put on the label above the bar
+data Event = Event { title :: String    --Label above the bar
                    , tooltip :: String  --Tooltip when hoving over
                    , decr :: Double     --Decriment function
                    }
   deriving (Eq,Ord)
 
 startingEvents :: [Event]
-startingEvents = [encounterEvent,torchEvent,lanternEvent,exhaustEvent]
+startingEvents = [encounterEvent,torchEvent,lanternEvent
+                 ,exhaustEvent]
 
 torchEvent :: Event
-torchEvent = Event  { title = "Torch Goes Out!"
-                    , tooltip = ""
-                    , decr = 0.6 --Two steps, but looks to be at 40% after first tick
-                    }
+torchEvent = Event "Torch Goes Out!" "" 0.5
 
 exhaustEvent :: Event
-exhaustEvent = Event  { title = "Exhausted!"
-                      , tooltip = ""
-                      , decr = 0.1 --Ten steps
-                      }
+exhaustEvent = Event "Exhausted!" "" 0.1
 
 lanternEvent :: Event
-lanternEvent = Event  { title = "Lantern Goes Out!"
-                      , tooltip = ""
-                      , decr = 0.125 --Eight steps
-                      }
+lanternEvent = Event "Lantern Goes Out!" "" 0.125
 
 encounterEvent :: Event
-encounterEvent = Event  { title = "Random Encounter!"
-                        , tooltip = ""
-                        , decr = 0.25 --Four steps
-                        }
+encounterEvent = Event "Random Encounter!" "" 0.25

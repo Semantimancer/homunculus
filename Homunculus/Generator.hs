@@ -390,7 +390,7 @@ editGenerator gen box' (top,dataPath) = do
   optRow <- hBoxNew True 0
 
   os <- newIORef $ options gen
-  ts <- newIORef [] :: IO (IORef [(Entry,ListStore Row)])
+  ts <- newIORef [] :: IO (IORef [(String,ListStore Row)])
 
   tableRow <- hBoxNew True 0
 
@@ -585,24 +585,16 @@ editOption v list (Just (o,i)) = do
   widgetShowAll v
 
 saveGen :: Generator -> Entry -> TextBuffer -> IORef [Option]
-        -> IORef ([(Entry,ListStore Row)]) -> IO ()
+        -> IORef ([(String,ListStore Row)]) -> IO ()
 saveGen gen nameBox descBuf os ts = do
-  name' <- entryGetText nameBox
-  (i,i') <- textBufferGetBounds descBuf
-  desc' <- textBufferGetText descBuf i i' True
-  ts'' <- readIORef ts
-  ts' <- mapM (\(e,m) -> do
-    text <- entryGetText e
-    list <- listStoreToList m
-    return $ Table { title = text, rows = list } 
-    ) ts''
-  os' <- readIORef os
-  let newGen = Generator  { name = name'
-                          , description = desc'
-                          , options = os' 
-                          , tables = ts'
-                          }
   dataPath <- getAppUserDataDirectory "homunculus"
+
+  newName <- entryGetText nameBox
+  newDesc <- (\(x,y) -> textBufferGetText descBuf x y True) =<< textBufferGetBounds descBuf
+  newTables <- mapM (\(text,model) -> 
+    (\l -> return (Table text l)) =<< listStoreToList model
+    ) =<< readIORef ts
+  newOpts <- readIORef os
 
   --Delete the file so that if the generator's name has changed, it doesn't
   --leave an older duplicate behind.
@@ -611,31 +603,28 @@ saveGen gen nameBox descBuf os ts = do
   then removeFile (dataPath </> "generators" </> (toFileName $ name gen))
   else return ()
 
-  writeFile (dataPath </> "generators" </> (toFileName name')) (show newGen)
+  writeFile (dataPath </> "generators" </> (toFileName newName)) 
+            (show $ Generator newName newDesc newTables newOpts)
   where toFileName str = (filter isAlphaNum str)++".gen"
 
-makePage :: Notebook -> IORef [(Entry,ListStore Row)] -> Table -> IO ()
+makePage :: Notebook -> IORef [(String,ListStore Row)] -> Table -> IO ()
 makePage right ts x = do
   {-
     INITIALIZATION
   -}
   page <- vBoxNew False 0
-  entry <- entryNew
   box <- hBoxNew False 0
-  l <- labelNew $ Just "     " --This is just a hack
   bar <- toolbarNew
 
   new <- toolButtonNewFromStock stockNew
   del <- toolButtonNewFromStock stockDelete
   sep <- separatorToolItemNew
-  lb <- toolButtonNewFromStock stockGotoFirst
-  rb <- toolButtonNewFromStock stockGotoLast
+  ren <- toolButtonNew (Nothing :: Maybe Image) (Just "Rename Table")
+  delTable <- toolButtonNew (Nothing :: Maybe Image) (Just "Delete Table")
 
   {-
     CONSTRUCTION
   -}
-  set rb    [ widgetHasTooltip := True, widgetTooltipText := Just "Move Table Right" ]
-  set lb    [ widgetHasTooltip := True, widgetTooltipText := Just "Move Table Left" ]
   set sep   [ separatorToolItemDraw := False
             , toolItemExpand := True
             ]
@@ -644,40 +633,78 @@ makePage right ts x = do
   set bar   [ containerChild := new
             , containerChild := del
             , containerChild := sep
-            , containerChild := lb
-            , containerChild := rb
+            , containerChild := delTable
+            , containerChild := ren
             ]
   set page  [ containerChild := bar, boxChildPacking bar := PackNatural ]
-  set entry [ entryText := title x ]
-  set box   [ containerChild := entry
-            , containerChild := l
-            ]
-  notebookAppendPage right page ""
-  notebookSetTabLabel right page box
+  notebookAppendPage right page $ title x
+  notebookSetTabReorderable right page True
 
   {-
     LOGIC
   -}
   model <- showTable page x [new,del]
 
-  onToolButtonClicked lb $ do
-    --This is unsafe, but I don't think it's possible for users to make an error
-    (Just i) <- notebookPageNum right page
-    notebookReorderChild right page (i-1)
-    modifyIORef ts (moveLeft i)
-  onToolButtonClicked rb $ do
-    --This is unsafe, but I don't think it's possible for users to make an error
-    (Just i) <- notebookPageNum right page
-    notebookReorderChild right page (i+1)
-    modifyIORef ts (moveRight i)
+  onToolButtonClicked delTable $ do
+    Just txt <- notebookGetTabLabelText right page
+    i <- notebookGetCurrentPage right
+    notebookRemovePage right i
+    modifyIORef ts $ deleteBy (\(x,_) (y,_) -> x==y) (txt,model)
+  onToolButtonClicked ren $ nameTable right page ts False
+  on right pageReordered $ \_ _ -> do
+    strs <- mapM (notebookGetTabLabelText right) =<< containerGetChildren right 
+    oldRef <- readIORef ts
+    writeIORef ts $ reorderList oldRef $
+      foldl (\acc x -> if x==Nothing then acc else let Just y = x in acc++[y]) [] strs
 
-  modifyIORef' ts (++[(entry,model)])
+  modifyIORef' ts (++[(title x,model)])
   widgetShowAll box
-  where moveRight i xs = if i>=(length xs-1) 
-                         then xs
-                         else let (l,r:rs) = splitAt i xs in l++[head rs,r]++(tail rs)
-        moveLeft 0 xs = xs
-        moveLeft i xs = let (l,r:rs) = splitAt i xs in (init l)++[r,last l]++rs
+
+reorderList :: [(String,a)] -> [String] -> [(String,a)]
+reorderList _ [] = []
+reorderList xs (str:strs) = (get str xs) : reorderList xs strs
+  where get elem list = head $ filter (\(s,a) -> s==elem) list --This is unsafe
+
+nameTable :: Notebook -> VBox -> IORef [(String,ListStore Row)] -> Bool -> IO ()
+nameTable right page ts bool = do
+    Just currentTitle <- notebookGetTabLabelText right page :: IO (Maybe String)
+    list <- readIORef ts
+
+    dialog <- dialogNew
+    upper' <- dialogGetContentArea dialog
+    let upper = castToContainer upper'
+    entry <- entryNew
+    label <- labelNew $ Just $ "Table Name:"++(if bool then "\nInvalid name!" else "")
+
+    set entry   [ entryText := currentTitle ]
+    set upper   [ containerChild := label
+                , containerChild := entry 
+                ]
+    set dialog  [ windowTitle := "Rename Table"
+                , windowResizable := False
+                , windowModal := True
+                , windowWindowPosition := WinPosCenterAlways
+                , windowDeletable := False
+                , containerBorderWidth := 5
+                ]
+
+    dialogAddButton dialog stockOk ResponseOk
+    dialogAddButton dialog stockCancel ResponseCancel
+    widgetShowAll upper
+
+    response <- dialogRun dialog
+    if response==ResponseOk
+    then do
+      txt <- entryGetText entry
+      if txt `elem` (map fst list)
+      then widgetDestroy dialog >> nameTable right page ts True
+      else do
+        i <- notebookGetCurrentPage right
+        writeIORef ts $ (take i list)++[(txt,snd $ list!!i)]++(drop (i+1) list)
+        notebookSetTabLabelText right page txt
+        widgetShowAll right
+        widgetDestroy dialog
+    else widgetDestroy dialog
 
 showTable :: VBox -> Table -> [ToolButton] -> IO (ListStore Row)
 showTable v t [new,del] = do

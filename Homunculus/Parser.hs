@@ -87,6 +87,32 @@ p <> p' = Parser $ \q -> case parse p q of
   x   -> x
 
 {-
+  This is our compositor.
+
+  If the first parser is given a string and reads it properly, then the newly parsed string
+  will be sent through the second parser. If the first parser fails, however, then the
+  second parser will never be used.
+-}
+(<.>) :: Parser String -> Parser String -> Parser String
+p <.> p' = Parser $ \q -> case parse p q of
+  [(x,[])]  -> parse p' x
+  x         -> x
+
+{-
+  And this is a specialized combinator/compositor that allows for backtracking. 
+  
+  It takes a string and runs it through the first parser, then takes EVERYTHING (whether 
+  the first parser got to it or not) and runs that, collectively, through the second. If 
+  the first parser fails entirely, then it will just run the second parser over the 
+  original string.
+-}
+
+(<?>) :: Parser String -> Parser String -> Parser String
+p <?> p' = Parser $ \q -> case parse p q of
+  [(x,xs)]  -> parse p' $ x++xs
+  []        -> parse p' q
+
+{-
   Checks to see if the head character in the string satisfies a condition. If it does, then
   that character is pulled off the string. If not, it fails.
 
@@ -171,7 +197,9 @@ script :: [String] -> StdGen -> Parser String
 script opts g = do
   --Runs through our various script-related parsers. If all fail, just returns the first
   --character as a string.
-  x <- dice g <> list g <> vars opts <> getChar'
+  --SPECIAL NOTE: The <?> function DOES create precedence, which is determined by the
+  --order of the functions. So {foo=[bar|baz]} is legal, but [{foo=bar}|{foo=baz}] is not.
+  x <- vars opts <?> list g <?> dice g <?> ops <?> getChar'
   --We have to use the many function here as a safety measure. Unfortunately, this will
   --convert all of our nice Parser String functions into Parser [String] functions, so
   --when we return everything we have to concat them all back together. We use a new
@@ -179,11 +207,8 @@ script opts g = do
   xs <- many $ script opts g'
   --Then we run the generated string through a parser to do calculations, since those 
   --need to be done after everything else.
-  return $ ret $ concat $ x:xs
-  where ret s = case parse script' s of
-          [(x,[])]  -> x
-          []        -> []
-        (_,g') = random g :: (Int,StdGen)
+  return $ concat $ x:xs
+  where (_,g') = random g :: (Int,StdGen)
 
 --This is run over the output of script. The reason we don't combine the two parsers into
 --one is that the parsers used here MUST be used on the output of the parsers found in
@@ -267,7 +292,7 @@ list' g = do
           else return [val]
         (i,g') = random g :: (Int,StdGen)
 
---Takes a set of options {A=foo|B=bar|Else=Baz} and picks the first TRUE statement
+--Takes a set of options {A=foo;B=bar;Else=Baz} and picks the first TRUE statement
 vars :: [String] -> Parser String
 vars opts = do
   _ <- char '{'
@@ -278,9 +303,9 @@ vars opts = do
 
 vars' :: Parser [(String,String)]
 vars' = do
-  val <- until "|}"
-  x <- oneOf "|}"
-  if x=='|'
+  val <- until ";}"
+  x <- oneOf ";}"
+  if x==';'
   then do
     val' <- vars'
     return $ (makeTuple val):val'

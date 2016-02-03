@@ -74,7 +74,7 @@ generate' :: Maybe Table -> [Table] -> [String] -> StdGen -> String
 generate' Nothing _ _ _ = "Error: No Table With That Name!"
 generate' (Just t) ts' opts g = case parse (script opts g') full of
   [(x,[])]  -> replace "\\\\" "\n" x
-  []        -> "Error in parse function!"
+  x         -> "Error in parse function!\n\n\n"++(show x)
   where --This is the full string, with all table references 
         --already taken care of
         full = case parse (tableRef ts opts g) $ list 

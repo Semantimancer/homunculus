@@ -107,6 +107,7 @@ p <.> p' = Parser $ \q -> case parse p q of
   original string.
 -}
 
+infixr 5 <?>
 (<?>) :: Parser String -> Parser String -> Parser String
 p <?> p' = Parser $ \q -> case parse p q of
   [(x,xs)]  -> parse p' $ x++xs
@@ -210,15 +211,6 @@ script opts g = do
   return $ concat $ x:xs
   where (_,g') = random g :: (Int,StdGen)
 
---This is run over the output of script. The reason we don't combine the two parsers into
---one is that the parsers used here MUST be used on the output of the parsers found in
---script. For example, we have to use ops on the OUTPUT of dice.
-script' :: Parser String
-script' = do
-  x <- ops <> getChar'
-  xs <- many script'
-  return $ concat $ x:xs
-
 --This is just a wrapper function to convert the rolls into a string
 dice :: StdGen -> Parser String
 dice g = do
@@ -293,13 +285,13 @@ list' g = do
         (i,g') = random g :: (Int,StdGen)
 
 --Takes a set of options {A=foo;B=bar;Else=Baz} and picks the first TRUE statement
+--Behavior without an else statement undefined
 vars :: [String] -> Parser String
 vars opts = do
   _ <- char '{'
   xs <- vars'
-  return $ head $ (filter (/="") (map test xs))++[""]
-  where test ("Else",y) = y
-        test (x,y) = if x `elem` opts then y else []
+  return $ 
+    foldr (\(x,y) acc -> if x `elem` ("Else":opts) then y else acc) "" xs
 
 vars' :: Parser [(String,String)]
 vars' = do

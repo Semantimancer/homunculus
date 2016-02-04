@@ -102,7 +102,9 @@ makeDiceWidget = do
                               _         -> "Operation error in dice widget\n\n"
                 _         -> "Parse error in dice widget\n\n"
         --Figures out which type of dice to use for the roll, and how many
-        filterDice i (True:_) (y:_) = if (head y)=='d' then (show $ floor i)++y else y
+        filterDice i (True:_) (y:_) = if y==[] then ""
+                                      else if (head y)=='d' then (show $ floor i)++y 
+                                      else y
         filterDice i (False:xs) (_:ys) = filterDice i xs ys
 
 ds :: [String]

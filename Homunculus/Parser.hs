@@ -291,10 +291,12 @@ vars opts = do
   _ <- char '{'
   xs <- vars'
   return $ 
-    foldr (\(x,y) acc -> if checkAnd x||x=="Else" then y else acc) "" xs
-  where checkAnd opt = case split "&&" opt of
-                        (x:[])  -> x `elem` opts
-                        (x:y:_) -> (checkAnd x)&&(checkAnd y)
+    foldr (\(x,y) acc -> if (check "&&" x)||(check "||" x) then y else acc) "" xs
+  where check str opt = case split str opt of
+                        (x:[])  -> x `elem` ("Else":opts)
+                        (x:y:_) -> (strToOp str) (check str x) (check str y)
+        strToOp "&&" = (&&)
+        strToOp "||" = (||)
 
 vars' :: Parser [(String,String)]
 vars' = do

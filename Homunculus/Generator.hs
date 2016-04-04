@@ -261,12 +261,11 @@ runGenerator gen box' = do
   left <- vBoxNew False 5
   right' <- vBoxNew False 0
   right <- frameNew
-  view <- textViewNew
-  copy' <- hBoxNew False 0
-  copy <- buttonNewWithLabel "Copy To Clipboard"
-  clipboard <- clipboardGet selectionClipboard
+  view' <- scrolledWindowNew Nothing Nothing
+  view <- vBoxNew False 3
 
-  txt <- textViewGetBuffer view
+  clear' <- hBoxNew False 2
+  clear <- buttonNewWithLabel "Clear"
 
   descLabel <- labelNew $ Just $ description gen
   optBox <- vBoxNew False 0
@@ -308,16 +307,16 @@ runGenerator gen box' = do
               , containerChild := genButton, boxChildPacking genButton := PackNatural
                                            , boxChildPackType genButton := PackEnd
               ]
-  set view    [ textViewEditable := False
-              , textViewWrapMode := WrapWordChar
-              , textViewLeftMargin := 3
-              , textViewRightMargin := 3
+  set view    [ containerBorderWidth := 2 ]
+  set view'   [ containerChild := view 
+              , scrolledWindowHscrollbarPolicy := PolicyNever
+              , scrolledWindowVscrollbarPolicy := PolicyAutomatic
               ]
-  set copy'   [ containerChild := copy, boxChildPacking copy := PackNatural
-              , boxChildPackType copy := PackEnd 
+  set clear'  [ containerChild := clear, boxChildPacking clear := PackNatural
+                                       , boxChildPackType clear := PackEnd 
               ]
-  set right'  [ containerChild := view, boxChildPacking view := PackGrow
-              , containerChild := copy', boxChildPacking copy' := PackNatural
+  set right'  [ containerChild := view', boxChildPacking view' := PackGrow
+              , containerChild := clear', boxChildPacking clear' := PackNatural
               , containerBorderWidth := 3
               ]
   set right   [ frameShadowType := ShadowIn, containerChild := right' ]
@@ -340,10 +339,19 @@ runGenerator gen box' = do
     tab <- comboBoxGetActiveText tabCombo
     os <- mapM comboBoxGetActiveText opts
     let opts = getOpts g $ (tab,[]):(zip os (map snd $ options gen))
-    set txt [ textBufferText := generate gen opts g ]
-  on copy buttonActivated $ do
-    (start,end) <- textBufferGetBounds txt
-    clipboardSetText clipboard =<< (textBufferGetText txt start end True :: IO String)
+
+    bar <- hSeparatorNew
+    label <- labelNew $ Just $ generate gen opts g
+
+    set label [ labelLineWrap := True ]
+    set view  [ containerChild := label, boxChildPacking label := PackNatural 
+                                       , boxChildPosition label := 0
+              , containerChild := bar, boxChildPacking bar := PackNatural
+                                     , boxChildPosition bar := 0
+              ]
+
+    widgetShowAll view
+  on clear buttonActivated $ mapM_ widgetDestroy =<< containerGetChildren view
   widgetShowAll box
 
 --After pulling in user-made choices, determine any other options randomly

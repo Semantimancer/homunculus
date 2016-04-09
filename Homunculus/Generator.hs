@@ -343,7 +343,9 @@ runGenerator gen box' = do
     bar <- hSeparatorNew
     label <- labelNew $ Just $ generate gen opts g
 
-    set label [ labelLineWrap := True ]
+    set label [ labelLineWrap := True 
+              , miscXalign := 0
+              ]
     set view  [ containerChild := label, boxChildPacking label := PackNatural 
                                        , boxChildPosition label := 0
               , containerChild := bar, boxChildPacking bar := PackNatural

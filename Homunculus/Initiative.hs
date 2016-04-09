@@ -176,7 +176,8 @@ makeTreeView model = do
     listStoreSetValue model i val { name = str }
   on renderer2 edited $ \[i] str -> do
     val <- listStoreGetValue model i
-    listStoreSetValue model i val { initiative = read $ filter (`elem` ['0'..'9']) str }
+    let str' = filter (`elem` ['0'..'9']) str
+    listStoreSetValue model i val { initiative = if str=="" then 0 else read str' }
   on renderer3 edited $ \[i] str -> do
     val <- listStoreGetValue model i
     listStoreSetValue model i val { notes = str }

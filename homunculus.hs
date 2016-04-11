@@ -74,6 +74,7 @@ start = do
   abtH <- menuItemNewWithLabel "About"
   genH <- menuItemNewWithLabel "Generator Help"
 
+  scroll <- scrolledWindowNew Nothing Nothing
   vbox <- vBoxNew False 0
   hbox <- hBoxNew False 0
 
@@ -101,7 +102,8 @@ start = do
   set vbox    [ containerChild := menu, boxChildPacking menu := PackNatural
               , containerChild := hbox
               ]
-  set window  [ containerChild := vbox ]
+  set scroll  [ containerChild := vbox ]
+  set window  [ containerChild := scroll ]
 
   {-
     LOGIC

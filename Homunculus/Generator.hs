@@ -472,6 +472,7 @@ editGenerator gen box' (top,dataPath) = do
   onToolButtonClicked save $ do
     updateTop top dataPath box'
     saveGen gen nameBox descBuf os ts
+    saveGen gen nameBox descBuf os ts
   onToolButtonClicked exit $ do
     mapM_ widgetDestroy =<< containerGetChildren box'
     updateTop top dataPath box'

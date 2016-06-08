@@ -7,7 +7,7 @@ import Homunculus.Sidebar
 import Homunculus.Toolbox
 
 import Graphics.UI.Gtk
-import System.Directory (getAppUserDataDirectory)
+import System.Directory 
 import System.Environment (getArgs)
 import System.Random
 
@@ -112,6 +112,11 @@ start = do
   --passing it along to functions (rather than calling it as needed) so that, in future
   --versions, I can have some logic here for user-defined directories.
   dataPath <- getAppUserDataDirectory "homunculus"
+
+  --I need to make sure there's a file structure that Homunculus can follow in dataPath.
+  createDirectoryIfMissing True $ dataPath++"/names"
+  createDirectoryIfMissing True $ dataPath++"/generators"
+
 
   makeSidebar dataPath sideBox
   makeToolbox dataPath toolBox

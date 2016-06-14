@@ -3,10 +3,11 @@ module Homunculus.Event where
 import Control.Monad (filterM)
 import Control.Monad.IO.Class
 import Graphics.UI.Gtk
+import System.Directory (renameFile, doesFileExist)
 import System.Random (randomRIO)
 
-makeEventWidget :: IO Expander
-makeEventWidget = do
+makeEventWidget :: FilePath -> IO Expander
+makeEventWidget dataPath = do
   {-
     INITIALIZATION
   -}
@@ -25,11 +26,17 @@ makeEventWidget = do
   {-
     LOGIC
   -}
-  makeEventWidget' box startingEvents
+  savedEventsExist <- doesFileExist $ dataPath++"/events.save"
+  if savedEventsExist
+  then do
+    savedEvents <- readFile $ dataPath++"/events.save"
+    --This needs some extra safety added in
+    makeEventWidget' box dataPath (read savedEvents)
+  else makeEventWidget' box dataPath startingEvents
   return exp
 
-makeEventWidget' :: VBox -> [Event] -> IO ()
-makeEventWidget' v events = do
+makeEventWidget' :: VBox -> FilePath -> [Event] -> IO ()
+makeEventWidget' v dataPath events = do
   mapM_ widgetDestroy =<< containerGetChildren v
   {-
     INITIALIZATION
@@ -103,12 +110,12 @@ makeEventWidget' v events = do
     let (_,p,e) = ps'!!n
     frac <- progressBarGetFraction p
     progressBarSetFraction p $ frac-(decr e)
-  on edit buttonActivated $ editEventWidget v events
+  on edit buttonActivated $ editEventWidget v dataPath events
 
   widgetShowAll v
 
-editEventWidget :: VBox -> [Event] -> IO ()
-editEventWidget v events = do
+editEventWidget :: VBox -> FilePath -> [Event] -> IO ()
+editEventWidget v dataPath events = do
   mapM_ widgetDestroy =<< containerGetChildren v
   {-
     INITIALIZATION
@@ -118,6 +125,7 @@ editEventWidget v events = do
   new <- buttonNewWithLabel "New Event"
   row <- hBoxNew True 3
   button <- buttonNewWithLabel "Done"
+  save <- buttonNewWithLabel "Save"
   cancel <- buttonNewWithLabel "Cancel"
 
   es <- mapM (\_ -> entryNew) events
@@ -143,6 +151,7 @@ editEventWidget v events = do
             ]
     ) $ zip es ss
   set row [ containerChild := button
+          , containerChild := save
           , containerChild := cancel
           ]
   set v   [ containerChild := box
@@ -161,12 +170,17 @@ editEventWidget v events = do
   on new buttonActivated $ do
     es' <- mapM entryGetText es
     ss' <- mapM spinButtonGetValue ss
-    editEventWidget v $ (map newEvent (zip es' ss'))++[blankEvent]
+    editEventWidget v dataPath $ (map newEvent (zip es' ss'))++[blankEvent]
   on button buttonActivated $ do
     es' <- mapM entryGetText es
     ss' <- mapM spinButtonGetValue ss
-    makeEventWidget' v $ map newEvent (zip es' ss')
-  on cancel buttonActivated $ makeEventWidget' v events
+    makeEventWidget' v dataPath $ map newEvent (zip es' ss')
+  on save buttonActivated $ do
+    es' <- mapM entryGetText es
+    ss' <- mapM spinButtonGetValue ss
+    writeFile (dataPath++"/events.save.temp") $ show $ map newEvent (zip es' ss')
+    renameFile (dataPath++"/events.save.temp") (dataPath++"/events.save")
+  on cancel buttonActivated $ makeEventWidget' v dataPath events
   widgetShowAll v
   where newEvent (x,y) = Event x "" (1/y)
         blankEvent = Event { title = "", tooltip = "", decr = 0.5 }
@@ -175,7 +189,7 @@ data Event = Event { title :: String    --Label above the bar
                    , tooltip :: String  --Tooltip when hoving over
                    , decr :: Double     --Decriment function
                    }
-  deriving (Eq,Ord)
+  deriving (Read,Show,Eq,Ord)
 
 startingEvents :: [Event]
 startingEvents = [encounterEvent,torchEvent,lanternEvent

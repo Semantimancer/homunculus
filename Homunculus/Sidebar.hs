@@ -12,7 +12,7 @@ makeSidebar dataPath box = do
   {-
     INITIALIZATION
   -}
-  widgets <- mapM (\x -> return =<< x) [makeNameWidget,makeEventWidget,makeDiceWidget]
+  widgets <- mapM (\x -> return =<< x) [makeNameWidget,makeEventWidget dataPath,makeDiceWidget]
   {-
     CONSTRUCTION
   -}

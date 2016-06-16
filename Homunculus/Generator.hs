@@ -472,7 +472,6 @@ editGenerator gen box' (top,dataPath) = do
   onToolButtonClicked save $ do
     updateTop top dataPath box'
     saveGen gen nameBox descBuf os ts
-    saveGen gen nameBox descBuf os ts
   onToolButtonClicked exit $ do
     mapM_ widgetDestroy =<< containerGetChildren box'
     updateTop top dataPath box'
@@ -782,8 +781,9 @@ showTable v t [new,del] = do
       cop <- menuItemNewWithLabel "Copy"
       pas <- menuItemNewWithLabel "Paste"
       del <- menuItemNewWithLabel "Delete"
+      edt <- menuItemNewWithLabel "Edit Row..."
       
-      mapM_ (menuShellAppend m) [new,cut,cop,pas,del]
+      mapM_ (menuShellAppend m) [new,cut,cop,pas,del,edt]
 
       tree <- treeViewGetSelection view
       sel <- treeSelectionGetSelectedRows tree
@@ -808,6 +808,10 @@ showTable v t [new,del] = do
       on pas menuItemActivate $ clipboardRequestText clipboard (pasteRow model index)
       on del menuItemActivate $ 
         if index==(-1) then return () else listStoreRemove model index
+      on edt menuItemActivate $ 
+        if index==(-1)
+        then return ()
+        else editWindow model index
       menuPopup m Nothing
       widgetShowAll m
   onToolButtonClicked new $ do
@@ -823,6 +827,44 @@ showTable v t [new,del] = do
 
   widgetShowAll v
   return model
+
+editWindow :: ListStore Row -> Int -> IO ()
+editWindow model index = do
+  dialog <- dialogNew
+  upper' <- dialogGetContentArea dialog
+  let upper = castToContainer upper'
+  scroll <- scrolledWindowNew Nothing Nothing
+  view <- textViewNew
+  buff <- textViewGetBuffer view
+
+  (weight,oldText) <- listStoreGetValue model index
+
+  set view    [ textViewWrapMode := WrapWordChar ]
+  set buff    [ textBufferText := replace "\\\\" "\n" oldText ]
+  set scroll  [ containerChild := view
+              , widgetWidthRequest := 400
+              , widgetHeightRequest := 300
+              , scrolledWindowShadowType := ShadowEtchedOut
+              ]
+  set upper   [ containerChild := scroll ]
+  set dialog  [ windowTitle := "Edit Row"
+              , windowModal := True
+              , windowWindowPosition := WinPosCenter
+              , windowDeletable := True
+              , containerBorderWidth := 5
+              ]
+
+  dialogAddButton dialog stockOk ResponseOk
+  dialogAddButton dialog stockCancel ResponseCancel
+  widgetShowAll upper
+
+  response <- dialogRun dialog
+  if response==ResponseOk
+  then do
+    newText <- (\(i,i') -> textBufferGetText buff i i' True) =<< textBufferGetBounds buff
+    listStoreSetValue model index (weight,replace "\n" "\\\\" newText)
+    widgetDestroy dialog
+  else widgetDestroy dialog
 
 readRow :: String -> Maybe Row
 readRow str = case reads str of

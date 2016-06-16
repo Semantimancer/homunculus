@@ -74,11 +74,12 @@ start = do
   abtH <- menuItemNewWithLabel "About"
   genH <- menuItemNewWithLabel "Generator Help"
 
-  scroll <- scrolledWindowNew Nothing Nothing
   vbox <- vBoxNew False 0
   hbox <- hBoxNew False 0
 
+  sideBox' <- scrolledWindowNew Nothing Nothing
   sideBox <- vBoxNew False 0
+  toolBox' <- scrolledWindowNew Nothing Nothing
   toolBox <- vBoxNew False 0
 
   {-
@@ -91,19 +92,23 @@ start = do
   mapM_ (menuShellAppend viewMenu) [side]
   mapM_ (menuShellAppend helpMenu) [abtH,genH]
 
-  set side    [ checkMenuItemActive := True ]
-  set file    [ menuItemSubmenu := fileMenu ]
-  set view    [ menuItemSubmenu := viewMenu ]
-  set help    [ menuItemSubmenu := helpMenu ]
-  set toolBox [ containerBorderWidth := 5 ]
-  set hbox    [ containerChild := sideBox, boxChildPacking sideBox := PackNatural
-              , containerChild := toolBox
-              ]
-  set vbox    [ containerChild := menu, boxChildPacking menu := PackNatural
-              , containerChild := hbox
-              ]
-  set scroll  [ containerChild := vbox ]
-  set window  [ containerChild := scroll ]
+  set side      [ checkMenuItemActive := True ]
+  set file      [ menuItemSubmenu := fileMenu ]
+  set view      [ menuItemSubmenu := viewMenu ]
+  set help      [ menuItemSubmenu := helpMenu ]
+  set toolBox   [ containerBorderWidth := 5 ]
+  set sideBox'  [ containerChild := sideBox 
+                , scrolledWindowHscrollbarPolicy := PolicyNever
+                , scrolledWindowVscrollbarPolicy := PolicyAutomatic
+                ]
+  set toolBox'  [ containerChild := toolBox ]
+  set hbox      [ containerChild := sideBox', boxChildPacking sideBox' := PackNatural
+                , containerChild := toolBox'
+                ]
+  set vbox      [ containerChild := menu, boxChildPacking menu := PackNatural
+                , containerChild := hbox
+                ]
+  set window    [ containerChild := vbox ]
 
   {-
     LOGIC
@@ -120,7 +125,7 @@ start = do
   on abtH menuItemActivated aboutWindow
   on side checkMenuItemToggled $ do
     b <- checkMenuItemGetActive side
-    set sideBox [ widgetVisible := b ]
+    set sideBox' [ widgetVisible := b ]
   on quit menuItemActivated mainQuit
   on window objectDestroy mainQuit
 

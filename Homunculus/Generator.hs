@@ -242,10 +242,11 @@ updateTop top dataPath bottom = do
       set edit  [ widgetSensitive := True ]
 
   if tables==[] 
-  then do
+  then return ()
+  {-then do
     set edit  [ widgetSensitive := False ]
     set ok    [ widgetSensitive := False ]
-    set combo [ widgetSensitive := False ]
+    set combo [ widgetSensitive := False ]-}
   else comboBoxSetActive combo 0
   widgetShowAll top
 

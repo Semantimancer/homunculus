@@ -17,18 +17,13 @@ Next, install the necessary libraries.
 
 ``` 
 # cabal update 
+# cabal install missingh
 # cabal install gtk2hs-buildtools
 # cabal install gtk3
 # cabal install markov-chain
 ```
 
-Copy the .homunculus folder to your home directory.
-
-``` 
-$ mv .homunculus ~/.homunculus 
-```
-
-Finally, compile and run.
+Compile and run.
 
 ``` 
 $ ghc homunculus 

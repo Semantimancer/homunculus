@@ -782,9 +782,13 @@ showTable v t [new,del] = do
       cop <- menuItemNewWithLabel "Copy"
       pas <- menuItemNewWithLabel "Paste"
       del <- menuItemNewWithLabel "Delete"
+      sep <- separatorMenuItemNew
       edt <- menuItemNewWithLabel "Edit Row..."
+      mny <- menuItemNewWithLabel "Insert Many..."
       
-      mapM_ (menuShellAppend m) [new,cut,cop,pas,del,edt]
+      mapM_ (menuShellAppend m) [new,cut,cop,pas,del]
+      menuShellAppend m sep
+      mapM_ (menuShellAppend m) [edt,mny]
 
       tree <- treeViewGetSelection view
       sel <- treeSelectionGetSelectedRows tree
@@ -813,6 +817,10 @@ showTable v t [new,del] = do
         if index==(-1)
         then return ()
         else editWindow model index
+      on mny menuItemActivate $ insertMany model index
+        --if index==(-1)
+        --then return ()
+        --else insertMany model index
       menuPopup m Nothing
       widgetShowAll m
   onToolButtonClicked new $ do
@@ -833,7 +841,7 @@ editWindow :: ListStore Row -> Int -> IO ()
 editWindow model index = do
   dialog <- dialogNew
   upper' <- dialogGetContentArea dialog
-  let upper = castToContainer upper'
+  let upper = castToBox upper'
   scroll <- scrolledWindowNew Nothing Nothing
   view <- textViewNew
   buff <- textViewGetBuffer view
@@ -847,7 +855,9 @@ editWindow model index = do
               , widgetHeightRequest := 300
               , scrolledWindowShadowType := ShadowEtchedOut
               ]
-  set upper   [ containerChild := scroll ]
+  set upper   [ containerChild := scroll 
+              , boxSpacing := 6
+              ]
   set dialog  [ windowTitle := "Edit Row"
               , windowModal := True
               , windowWindowPosition := WinPosCenter
@@ -866,6 +876,48 @@ editWindow model index = do
     listStoreSetValue model index (weight,replace "\n" "\\\\" newText)
     widgetDestroy dialog
   else widgetDestroy dialog
+
+insertMany :: ListStore Row -> Int -> IO ()
+insertMany model index = do
+  dialog <- dialogNew
+  upper' <- dialogGetContentArea dialog
+  --let upper = castToContainer upper'
+  let upper = castToBox upper'
+  scroll <- scrolledWindowNew Nothing Nothing
+  view <- textViewNew
+  buff <- textViewGetBuffer view
+
+  set scroll  [ containerChild := view
+              , widgetWidthRequest := 600
+              , widgetHeightRequest := 400
+              , scrolledWindowShadowType := ShadowEtchedOut
+              ]
+  set upper   [ containerChild := scroll 
+              , boxSpacing := 6
+              ]
+  set dialog  [ windowTitle := "Insert Multiple Rows"
+              , windowModal := True
+              , windowWindowPosition := WinPosCenter
+              , windowDeletable := True
+              , containerBorderWidth := 5
+              ]
+  
+  dialogAddButton dialog stockOk ResponseOk
+  dialogAddButton dialog stockCancel ResponseCancel
+  widgetShowAll upper
+
+  response <- dialogRun dialog
+  if response==ResponseOk
+  then do
+    (i,i') <- textBufferGetBounds buff
+    txt <- textBufferGetText buff i i' True
+    mapM_ (listStoreInsert model (index+1)) $ 
+      foldl (\acc x -> if x=="" then acc else (1,trim x):acc) [] (lines txt)
+    widgetDestroy dialog
+  else widgetDestroy dialog
+  where trim [] = []
+        trim (' ':xs) = trim xs
+        trim xs = xs
 
 readRow :: String -> Maybe Row
 readRow str = case reads str of

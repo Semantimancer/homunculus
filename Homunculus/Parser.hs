@@ -133,12 +133,9 @@ string :: String -> Parser String
 string = mapM char
 
 --Convenience functions
-alpha, digit, upper, lower, space :: Parser Char
+alpha, digit :: Parser Char
 alpha = satisfy isAlpha
 digit = satisfy isDigit
-upper = satisfy isUpper
-lower = satisfy isLower
-space = satisfy isSpace
 
 {-
   The many function has a built in "safety." If it can parse it, then it'll return a 
@@ -200,7 +197,7 @@ script opts g = do
   --character as a string.
   --SPECIAL NOTE: The <?> function DOES create precedence, which is determined by the
   --order of the functions. So {foo=[bar|baz]} is legal, but [{foo=bar}|{foo=baz}] is not.
-  x <- vars opts <?> list g <?> dice g <?> ops <?> getChar'
+  x <- vars opts <?> list g <?> dice g <?> ops <?> upper <?> lower <?> getChar'
   --We have to use the many function here as a safety measure. Unfortunately, this will
   --convert all of our nice Parser String functions into Parser [String] functions, so
   --when we return everything we have to concat them all back together. We use a new
@@ -210,6 +207,20 @@ script opts g = do
   --need to be done after everything else.
   return $ concat $ x:xs
   where (_,g') = random g :: (Int,StdGen)
+
+--This takes the string "UPPER::" and capitalizes the next character
+upper :: Parser String
+upper = do
+  _ <- string "UPPER::"
+  x <- getChar
+  return [toUpper x]
+
+--This does the opposite of upper, above
+lower :: Parser String
+lower = do
+  _ <- string "LOWER::"
+  x <- getChar
+  return [toLower x]
 
 --This is just a wrapper function to convert the rolls into a string
 dice :: StdGen -> Parser String

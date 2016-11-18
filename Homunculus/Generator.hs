@@ -243,20 +243,17 @@ updateTop top dataPath bottom = do
 
   if tables==[] 
   then return ()
-  {-then do
-    set edit  [ widgetSensitive := False ]
-    set ok    [ widgetSensitive := False ]
-    set combo [ widgetSensitive := False ]-}
   else comboBoxSetActive combo 0
   widgetShowAll top
 
 runGenerator :: Generator -> Frame -> IO ()
-runGenerator gen box' = do
-  mapM_ widgetDestroy =<< containerGetChildren box'
+runGenerator gen frame' = do
+  mapM_ widgetDestroy =<< containerGetChildren frame'
 
   {-
     INITIALIZATION
   -}
+  frame <- vBoxNew False 0
   box <- hBoxNew True 2
   left' <- scrolledWindowNew Nothing Nothing
   left <- vBoxNew False 5
@@ -265,12 +262,13 @@ runGenerator gen box' = do
   view' <- scrolledWindowNew Nothing Nothing
   view <- vBoxNew False 3
 
-  clear' <- hBoxNew False 2
+  row <- hBoxNew False 2
+  hide <- checkButtonNewWithLabel "Hide Options"
+  genButton <- buttonNewWithLabel "Generate"
   clear <- buttonNewWithLabel "Clear"
 
   descLabel <- labelNew $ Just $ description gen
   optBox <- vBoxNew False 0
-  genButton <- buttonNewWithLabel "Generate"
 
   tabRow   <- hBoxNew True 0
   tabLabel <- labelNew $ Just "Choose A Table: "
@@ -305,19 +303,18 @@ runGenerator gen box' = do
   set left    [ containerBorderWidth := 10
               , containerChild := descLabel, boxChildPacking descLabel := PackNatural
               , containerChild := optBox, boxChildPacking optBox := PackNatural
-              , containerChild := genButton, boxChildPacking genButton := PackNatural
-                                           , boxChildPackType genButton := PackEnd
               ]
   set view    [ containerBorderWidth := 2 ]
   set view'   [ containerChild := view 
               , scrolledWindowHscrollbarPolicy := PolicyNever
               , scrolledWindowVscrollbarPolicy := PolicyAutomatic
               ]
-  set clear'  [ containerChild := clear, boxChildPacking clear := PackNatural
+  set row     [ containerChild := hide, boxChildPacking hide := PackNatural
+              , containerChild := genButton, boxChildPacking genButton := PackRepel
+              , containerChild := clear, boxChildPacking clear := PackNatural
                                        , boxChildPackType clear := PackEnd 
               ]
   set right'  [ containerChild := view', boxChildPacking view' := PackGrow
-              , containerChild := clear', boxChildPacking clear' := PackNatural
               , containerBorderWidth := 3
               ]
   set right   [ frameShadowType := ShadowIn, containerChild := right' ]
@@ -329,12 +326,19 @@ runGenerator gen box' = do
   set box     [ containerChild := left'
               , containerChild := right
               ]
-  set box'    [ containerChild := box ]
+  set frame   [ containerChild := box 
+              , containerChild := row, boxChildPacking row := PackNatural
+              ]
+  set frame'  [ containerChild := frame ]
 
   {-
     LOGIC
   -}
   comboBoxSetActive tabCombo 0
+
+  on hide toggled $ do
+    bool <- toggleButtonGetActive hide
+    if bool then widgetHide left' else widgetShow left'
   on genButton buttonActivated $ do
     g <- newStdGen
     tab <- comboBoxGetActiveText tabCombo
@@ -345,6 +349,7 @@ runGenerator gen box' = do
     label <- labelNew $ Just $ generate gen opts g
 
     set label [ labelLineWrap := True 
+              , labelSelectable := True
               , miscXalign := 0
               ]
     set view  [ containerChild := label, boxChildPacking label := PackNatural 
@@ -355,7 +360,7 @@ runGenerator gen box' = do
 
     widgetShowAll view
   on clear buttonActivated $ mapM_ widgetDestroy =<< containerGetChildren view
-  widgetShowAll box
+  widgetShowAll frame
 
 --After pulling in user-made choices, determine any other options randomly
 getOpts :: StdGen -> [(Maybe Text,[String])] -> [String]

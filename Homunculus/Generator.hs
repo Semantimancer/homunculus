@@ -629,14 +629,18 @@ makePage right ts x = do
     INITIALIZATION
   -}
   page <- vBoxNew False 0
+  view <- vBoxNew False 0
   box <- hBoxNew False 0
   bar <- toolbarNew
+  info <- hBoxNew False 0
 
   new <- toolButtonNewFromStock stockNew
   del <- toolButtonNewFromStock stockDelete
   sep <- separatorToolItemNew
   ren <- toolButtonNew (Nothing :: Maybe Image) (Just "Rename Table")
   delTable <- toolButtonNew (Nothing :: Maybe Image) (Just "Delete Table")
+
+  weight <- labelNew $ Just ""
 
   {-
     CONSTRUCTION
@@ -652,14 +656,29 @@ makePage right ts x = do
             , containerChild := delTable
             , containerChild := ren
             ]
-  set page  [ containerChild := bar, boxChildPacking bar := PackNatural ]
+  set info  [ containerChild := weight, boxChildPacking weight := PackNatural 
+            , containerBorderWidth := 3
+            ]
+  set page  [ containerChild := bar, boxChildPacking bar := PackNatural 
+            , containerChild := view
+            , containerChild := info, boxChildPacking info := PackNatural
+            ]
   notebookAppendPage right page $ title x
   notebookSetTabReorderable right page True
 
   {-
     LOGIC
   -}
-  model <- showTable page x [new,del]
+  model <- showTable view x [new,del]
+
+  let updateInfo = (do temp <- listStoreToList model
+                       set weight [ labelLabel := "Total Weight: "++(show $ sum $ map fst temp) ])
+
+  updateInfo
+
+  on model rowChanged $ \_ _ -> updateInfo
+  on model rowInserted $ \_ _ -> updateInfo
+  on model rowDeleted $ \_ -> updateInfo
 
   onToolButtonClicked delTable $ do
     Just txt <- notebookGetTabLabelText right page

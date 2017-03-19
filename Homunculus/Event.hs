@@ -129,27 +129,33 @@ editEventWidget v dataPath events = do
   cancel <- buttonNewWithLabel "Cancel"
 
   es <- mapM (\_ -> entryNew) events
+  ds <- mapM (\_ -> buttonNewWithLabel "Delete") events
   ss <- mapM (\_ -> spinButtonNewWithRange 1.0 100.0 1.0) events
   {-
     CONSTRUCTION
   -}
-  mapM_ (\(e,s) -> do
+  mapM_ (\(e,s,d) -> do
     b <- vBoxNew False 0
+    q <- hBoxNew False 0
     r <- hBoxNew True 0
     l <- labelNew $ Just "Steps: "
 
+    set q   [ containerChild := e
+            , containerChild := d
+            , boxChildPacking d := PackNatural
+            ]
     set r   [ containerChild := l
             , containerChild := s
             ]
-    set b   [ containerChild := e
-            , boxChildPacking e := PackNatural
+    set b   [ containerChild := q
+            , boxChildPacking q := PackNatural
             , containerChild := r
             , boxChildPacking r := PackNatural
             ]
     set box [ containerChild := b
             , boxChildPacking b := PackNatural 
             ]
-    ) $ zip es ss
+    ) $ zip3 es ss ds
   set row [ containerChild := button
           , containerChild := save
           , containerChild := cancel
@@ -166,6 +172,7 @@ editEventWidget v dataPath events = do
   -}
   mapM_ (\(s,e) -> spinButtonSetValue s (1/decr e)) $ zip ss events
   mapM_ (\(e,v) -> entrySetText e (title v)) $ zip es events
+  mapM_ (\(d,e) -> on d buttonActivated $ editEventWidget v dataPath $ filter (/=e) events) $ zip ds events
 
   on new buttonActivated $ do
     es' <- mapM entryGetText es

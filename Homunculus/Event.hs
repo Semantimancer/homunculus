@@ -105,11 +105,14 @@ makeEventWidget' v dataPath events = do
   on button buttonActivated $ do
     ps' <- filterM (\(x,_,_) -> toggleButtonGetActive x)
             $ zip3 ls ps events
-    n <- randomRIO (0,length ps'-1)
+    if length ps'>0
+    then do
+      n <- randomRIO (0,length ps'-1)
 
-    let (_,p,e) = ps'!!n
-    frac <- progressBarGetFraction p
-    progressBarSetFraction p $ frac-(decr e)
+      let (_,p,e) = ps'!!n
+      frac <- progressBarGetFraction p
+      progressBarSetFraction p $ frac-(decr e)
+    else return ()
   on edit buttonActivated $ editEventWidget v dataPath events
 
   widgetShowAll v

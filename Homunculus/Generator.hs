@@ -713,7 +713,10 @@ nameTable right page ts bool = do
     entry <- entryNew
     label <- labelNew $ Just $ "Table Name:"++(if bool then "\nInvalid name!" else "")
 
-    set entry   [ entryText := currentTitle ]
+    set entry   [ entryText := currentTitle 
+                , entryActivatesDefault := True
+                , widgetMarginBottom := 15
+                ]
     set upper   [ containerChild := label
                 , containerChild := entry 
                 ]
@@ -727,6 +730,8 @@ nameTable right page ts bool = do
 
     dialogAddButton dialog stockOk ResponseOk
     dialogAddButton dialog stockCancel ResponseCancel
+    dialogSetDefaultResponse dialog ResponseOk
+
     widgetShowAll upper
 
     response <- dialogRun dialog

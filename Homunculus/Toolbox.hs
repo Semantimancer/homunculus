@@ -1,5 +1,6 @@
 module Homunculus.Toolbox where
 
+import Homunculus.Calendar
 import Homunculus.Generator
 import Homunculus.Initiative
 
@@ -14,12 +15,14 @@ makeToolbox dataPath box = do
   toolbox <- notebookNew
   gen <- makeGenerator dataPath
   ini <- makeInitiative 
+  cal <- makeCalendar
 
   {-
     CONSTRUCTION
   -}
-  _ <- notebookAppendPage toolbox gen "Generator"
-  _ <- notebookAppendPage toolbox ini "Initiative Tracker"
+  notebookAppendPage toolbox gen "Generator"
+  notebookAppendPage toolbox ini "Initiative Tracker"
+  notebookAppendPage toolbox cal "Calendar"
 
   set box     [ containerChild := toolbox ]
   {-

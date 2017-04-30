@@ -338,18 +338,11 @@ runGenerator gen frame' dataPath = do
 
   on popout buttonActivated $ do
     popWindow <- windowNew
+    popBox <- frameNew
 
-    popBox <- vBoxNew False 5
-    popTop <- hBoxNew False 2
-    popBottom <- frameNew
-
-    set popBox    [ containerChild := popTop, boxChildPacking popTop := PackNatural
-                  , containerChild := popBottom
-                  , containerBorderWidth := 5
-                  ]
     set popWindow [ containerChild := popBox ]
 
-    updateTop popTop dataPath popBottom
+    runGenerator gen popBox dataPath
     widgetShowAll popWindow
   on hide toggled $ do
     bool <- toggleButtonGetActive hide

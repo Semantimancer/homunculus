@@ -1,4 +1,4 @@
-module Homunculus.Generator where
+module Homunculus.Generator (makeGenerator, generateFile, testGen) where
 
 import Homunculus.Parser
 
@@ -172,9 +172,7 @@ makeGenerator dataPath = do
   {-
     CONSTRUCTION
   -}
-  --set bottom  [ containerBorderWidth := 5 ]
-  set box     [ containerChild := top
-              , boxChildPacking top := PackNatural
+  set box     [ containerChild := top, boxChildPacking top := PackNatural
               , containerChild := bottom
               , containerBorderWidth := 5
               ]
@@ -226,7 +224,7 @@ updateTop top dataPath bottom = do
 
   on ok buttonActivated $ do
     gen <- listStoreGetValue list =<< comboBoxGetActive combo
-    runGenerator gen bottom
+    runGenerator gen bottom dataPath
   on edit buttonActivated $ do
     gen <- listStoreGetValue list =<< comboBoxGetActive combo
     editGenerator gen bottom (top,dataPath)
@@ -246,8 +244,8 @@ updateTop top dataPath bottom = do
   else comboBoxSetActive combo 0
   widgetShowAll top
 
-runGenerator :: Generator -> Frame -> IO ()
-runGenerator gen frame' = do
+runGenerator :: Generator -> Frame -> FilePath -> IO ()
+runGenerator gen frame' dataPath = do
   mapM_ widgetDestroy =<< containerGetChildren frame'
 
   {-
@@ -263,6 +261,7 @@ runGenerator gen frame' = do
   view <- vBoxNew False 3
 
   row <- hBoxNew False 2
+  popout <- buttonNewWithLabel "Pop Out"
   hide <- checkButtonNewWithLabel "Hide Options"
   genButton <- buttonNewWithLabel "Generate"
   clear <- buttonNewWithLabel "Clear"
@@ -309,7 +308,8 @@ runGenerator gen frame' = do
               , scrolledWindowHscrollbarPolicy := PolicyNever
               , scrolledWindowVscrollbarPolicy := PolicyAutomatic
               ]
-  set row     [ containerChild := hide, boxChildPacking hide := PackNatural
+  set row     [ containerChild := popout, boxChildPacking popout := PackNatural
+              , containerChild := hide, boxChildPacking hide := PackNatural
               , containerChild := genButton, boxChildPacking genButton := PackRepel
               , containerChild := clear, boxChildPacking clear := PackNatural
                                        , boxChildPackType clear := PackEnd 
@@ -336,6 +336,21 @@ runGenerator gen frame' = do
   -}
   comboBoxSetActive tabCombo 0
 
+  on popout buttonActivated $ do
+    popWindow <- windowNew
+
+    popBox <- vBoxNew False 5
+    popTop <- hBoxNew False 2
+    popBottom <- frameNew
+
+    set popBox    [ containerChild := popTop, boxChildPacking popTop := PackNatural
+                  , containerChild := popBottom
+                  , containerBorderWidth := 5
+                  ]
+    set popWindow [ containerChild := popBox ]
+
+    updateTop popTop dataPath popBottom
+    widgetShowAll popWindow
   on hide toggled $ do
     bool <- toggleButtonGetActive hide
     if bool then widgetHide left' else widgetShow left'

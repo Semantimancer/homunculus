@@ -95,7 +95,7 @@ makeDiceWidget = do
 
   widgetShowAll exp
   return exp
-  where f x g = case parse (dice' g) x of
+  where f x g = case parse (fudgeDice g <> standardDice g) x of
                 [(q,"")]  -> concat ["Rolls: ",show q,"\nTotal: ",show $ sum q,"\n"]
                 [(q,s)]   -> case parse ops ((show $ sum q)++s) of
                               [(x,"")]  -> concat ["Rolls: ",show q,"\nTotal: ",x,"\n"]

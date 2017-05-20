@@ -222,15 +222,24 @@ lower = do
   x <- getChar
   return [toLower x]
 
---This is just a wrapper function to convert the rolls into a string
+--This tries every possible dice function, then converts the rolls into a string
 dice :: StdGen -> Parser String
 dice g = do
-  x <- dice' g
+  x <- fudgeDice g <> standardDice g
   return $ show $ foldl (+) 0 x
 
+fudgeDice :: StdGen -> Parser [Int]
+fudgeDice g = do
+  --If there's an int, pull it. If not (written "dY"), it will use a 1.
+  --If a negative number is given, Haskell will deal with it error-free.
+  x <- int <> return 1
+  --Pulls the standard 'd' character as well as the 'F' for FUDGE dice, all in one go
+  _ <- string "dF"
+  return $ take x $ randomRs (-1,1) g
+
 --Takes dice notation (XdY) and creates a [Int] to simulate rolling that many times.
-dice' :: StdGen -> Parser [Int]
-dice' g = do
+standardDice :: StdGen -> Parser [Int]
+standardDice g = do
   --If there's an int, pull it. If not (written "dY"), it will use a 1.
   --If a negative number is given, Haskell will deal with it error-free.
   x <- int <> return 1

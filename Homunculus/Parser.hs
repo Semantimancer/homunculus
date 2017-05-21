@@ -246,7 +246,20 @@ standardDice g = do
   --Pulls the 'd' character out. Since we don't need it for anything, it's just _
   _ <- char 'd'
   y <- int
-  return $ take x $ randomRs (1,y) g
+  --Pulls out the ! or !> that signifies exploding dice, or returns [] so that it
+  --won't consume anything it doesn't need to
+  z <- string "!>" <> string "!" <> return []
+  let roll = take x $ randomRs (1,y) g'
+  if z=="!" then return $ explode i (y-1) roll 
+  else if z=="!>" then do
+    target <- int
+    if target>1 then return $ explode i target roll else fail []
+  else return roll
+  where explode i y roll = let (i',gen) = random $ mkStdGen i :: (Int,StdGen)
+                               n = length $ filter (>y) roll
+                               newRoll = take n $ randomRs (1,y) gen
+                           in if n==0 then newRoll++roll else roll++(explode i' y newRoll)
+        (i,g') = random g :: (Int,StdGen)
 
 --Wrapper function to take mathematical operations and convert the result to a string
 ops :: Parser String

@@ -482,6 +482,7 @@ editGenerator gen box' (top,dataPath) = do
 
   onToolButtonClicked new $ do
     makePage right ts $ Table { title = "New Table", rows = [] }
+    widgetShowAll right
     notebookSetCurrentPage right (-1)
     widgetShowAll right
   onToolButtonClicked save $ do

@@ -3,6 +3,7 @@ module Homunculus.Toolbox where
 import Homunculus.Calendar
 import Homunculus.Generator
 import Homunculus.Initiative
+import Homunculus.Preroller
 
 import Graphics.UI.Gtk
 
@@ -15,6 +16,7 @@ makeToolbox dataPath box = do
   toolbox <- notebookNew
   gen <- makeGenerator dataPath
   ini <- makeInitiative 
+  pre <- makePreroller
   cal <- makeCalendar
 
   {-
@@ -22,6 +24,7 @@ makeToolbox dataPath box = do
   -}
   notebookAppendPage toolbox gen "Generator"
   notebookAppendPage toolbox ini "Initiative Tracker"
+  notebookAppendPage toolbox pre "Pre-Roller"
   notebookAppendPage toolbox cal "Calendar"
 
   set box     [ containerChild := toolbox ]

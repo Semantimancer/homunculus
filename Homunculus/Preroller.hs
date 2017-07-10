@@ -17,13 +17,11 @@ makePreroller = do
   topBar <- hBoxNew True 3
   bottomBar <- hBoxNew False 15
 
-  --labColumns <- labelNew $ Just "Number of Columns"
   frmColumns <- frameNew
-  numColumns <- spinButtonNewWithRange 1.0 20.0 1.0
+  numColumns <- spinButtonNewWithRange 1.0 99.0 1.0
 
-  --labRolls <- labelNew $ Just "Number of Rolls"
   frmRolls <- frameNew
-  numRolls <- spinButtonNewWithRange 1.0 50.0 1.0
+  numRolls <- spinButtonNewWithRange 1.0 99.0 1.0
 
   frmRoll <- frameNew
   normRoll <- entryNew
@@ -41,7 +39,7 @@ makePreroller = do
                   , frameShadowType := ShadowNone
                   ]
   set frmRoll     [ containerChild := normRoll
-                  , frameLabel := "Roll"
+                  , frameLabel := "Default Roll"
                   , frameShadowType := ShadowNone
                   ]
   set bottomBar   [ containerChild := frmColumns, boxChildPacking frmColumns := PackNatural
@@ -66,31 +64,46 @@ makePreroller = do
   entrySetText normRoll "1d20"
 
   let refresh = do
-        --mapM_ widgetDestroy =<< containerGetChildren topBar
         nColumns <- spinButtonGetValue numColumns
         nRolls <- spinButtonGetValue numRolls
         nRoll <- entryGetText normRoll
 
         entries <- mapM (\w -> do
-          (entry:_) <- containerGetChildren $ castToContainer w
-          txt <- entryGetText $ castToEntry entry
+          --Pulls the first and last widgets, because I know these will be entries. Unsafe.
+          (entryName:xs) <- containerGetChildren $ castToContainer w
+          let entryRoll = last xs
+          nameTxt <- entryGetText $ castToEntry entryName
+          rollTxt <- entryGetText $ castToEntry entryRoll
+
+          --This would be unsafe, but I know I will always set a placeholder text on these
+          Just nameTxt' <- entryGetPlaceholderText $ castToEntry entryName
+          Just rollTxt' <- entryGetPlaceholderText $ castToEntry entryRoll
+
           widgetDestroy w
-          return txt
+          return (if nameTxt=="" then nameTxt' else nameTxt
+                 ,if rollTxt=="" then rollTxt' else rollTxt)
           ) =<< containerGetChildren topBar
-        mapM_ (\txt -> do
+        mapM_ (\(txt,txt') -> do
           col <- vBoxNew False 10
           ent <- entryNew
+          rol <- entryNew
 
+          set ent     [ entryPlaceholderText := Just txt ]
+          set rol     [ entryPlaceholderText := Just txt' ]
           set col     [ containerChild := ent, boxChildPacking ent := PackNatural ]
           set topBar  [ containerChild := col ]
 
-          entrySetText ent txt
           replicateM_ (floor nRolls) $ do
             gen <- newStdGen
-            result <- labelNew $ Just $ roll nRoll gen
+            result <- checkButtonNewWithLabel $ roll txt' gen
             set col [ containerChild := result, boxChildPacking result := PackNatural ]
+            on result buttonActivated $ widgetDestroy result >> widgetShowAll col
 
-          ) (take (floor nColumns) $ entries++(drop (length entries) $ map show [1..]))
+          set col     [ containerChild := rol, boxChildPacking rol := PackNatural ]
+
+          ) $ take (floor nColumns) $ 
+                --In case you add columns, it has an infinite list of (X,nRoll) to draw on
+                entries++(drop (length entries) $ zip (map show [1..]) (repeat nRoll))
         widgetShowAll scroll
 
   on refreshButton buttonActivated refresh

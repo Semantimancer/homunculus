@@ -23,8 +23,8 @@ Homunculus Options
 
 ## Dependencies
 
-* [GHC](https://hackage.haskell.org/package/gtk3-0.14.1)
-* [Gtk2Hs bindings to Gtk3](https://www.haskell.org/ghc/): Not tested on versions below 0.12.5.7
+* [GHC](https://www.haskell.org/ghc/): Not tested on versions below 0.12.5.7
+* [Gtk3](https://hackage.haskell.org/package/gtk3-0.14.6)
 * [MissingH Library](https://hackage.haskell.org/package/MissingH)
 * [Markov-Chain Library](https://hackage.haskell.org/package/markov-chain)
 
@@ -32,8 +32,15 @@ Homunculus Options
 
 First, make sure that ghc and cabal are installed.
 
+(Ubuntu)
 ``` 
-# apt-get install ghc cabal 
+# apt-get install ghc cabal
+```
+
+(Arch)
+```
+# pacman -Syu
+# pacman -S ghc cabal-install
 ```
 
 Next, install the necessary libraries.
@@ -58,4 +65,5 @@ Compile and run.
 
 ``` 
 $ ghc homunculus 
+$ ./homunculus
 ```

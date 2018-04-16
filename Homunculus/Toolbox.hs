@@ -1,6 +1,7 @@
 module Homunculus.Toolbox where
 
 import Homunculus.Calendar
+import Homunculus.DropDie
 import Homunculus.Generator
 import Homunculus.Initiative
 import Homunculus.Preroller
@@ -16,6 +17,7 @@ makeToolbox dataPath box = do
   toolbox <- notebookNew
   gen <- makeGenerator dataPath
   ini <- makeInitiative 
+  drd <- makeDropDice
   pre <- makePreroller
   cal <- makeCalendar
 
@@ -24,6 +26,7 @@ makeToolbox dataPath box = do
   -}
   notebookAppendPage toolbox gen "Generator"
   notebookAppendPage toolbox ini "Initiative Tracker"
+  notebookAppendPage toolbox drd "Dice Dropper"
   notebookAppendPage toolbox pre "Pre-Roller"
   notebookAppendPage toolbox cal "Calendar"
 

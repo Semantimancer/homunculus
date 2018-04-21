@@ -81,14 +81,7 @@ makeDropDice = do
 
   on canvas draw $ drawDiceWidget canvas img dice
 
-  on file fileChooserButtonFileSet $ do
-    fp' <- fileChooserGetFilename file
-
-    when (fp'/=Nothing) $ let (Just fp) = fp'
-      in when (".png" `isInfixOf` fp) $ do  
-          newSurface <- imageSurfaceCreateFromPNG fp --This is dangerous! The check in the line above isn't sufficient.
-          swapMVar img $ Just newSurface
-          widgetQueueDraw canvas
+  on file fileChooserButtonFileSet $ setBackground canvas img =<< fileChooserGetFilename file
 
   on drop buttonActivated $ do
     g <- newStdGen
@@ -99,6 +92,15 @@ makeDropDice = do
 
   widgetShowAll hbox
   return hbox
+
+setBackground :: WidgetClass widget => widget -> MVar (Maybe Surface) -> Maybe String -> IO ()
+setBackground _ _ Nothing = return ()
+setBackground canvas img (Just f)
+  | ".png" `isInfixOf` f = do --This is dangerous! Not sufficient to actually check that it's in the correct filetype.
+      newSurface <- imageSurfaceCreateFromPNG f
+      swapMVar img $ Just newSurface
+      widgetQueueDraw canvas
+  | otherwise = return ()
 
 drawDiceWidget :: WidgetClass widget => widget -> MVar (Maybe Surface) -> MVar [DropDie] -> Render ()
 drawDiceWidget canvas mImg mDice = do

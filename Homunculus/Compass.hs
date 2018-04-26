@@ -7,6 +7,7 @@ import Graphics.Rendering.Cairo
 import Graphics.UI.Gtk.Gdk.EventM
 
 import Control.Concurrent.MVar
+import System.Directory (getAppUserDataDirectory)
 import System.Random
 
 makeCompassWidget :: IO Expander
@@ -21,6 +22,10 @@ makeCompassWidget = do
   control <- newMVar False
   currentAngle <- newMVar 0.0
   finalAngle <- newMVar 0.0
+
+  dataPath <- getAppUserDataDirectory "homunculus"
+  compass <- imageSurfaceCreateFromPNG $ dataPath++"/compass.png" --These are unsafe because there's no case for what happens if they fail
+  needle <- imageSurfaceCreateFromPNG $ dataPath++"/needle.png"   --That will be added soon.
 
   {-
     CONSTRUCTION
@@ -38,8 +43,8 @@ makeCompassWidget = do
     LOGIC
   -}
 
-  on canvas draw $ drawCanvasBackground canvas
-  on canvas draw $ drawCanvasForeground canvas currentAngle
+  on canvas draw $ drawCanvasBackground canvas compass
+  on canvas draw $ drawCanvasForeground canvas currentAngle needle
 
   on canvas buttonPressEvent $ tryEvent $ do
     LeftButton <- eventButton
@@ -51,9 +56,9 @@ makeCompassWidget = do
         swapMVar control True
         i <- randomRIO (1,8) :: IO Int
 
-        swapMVar finalAngle $ (2*pi)+(pi/4)*(realToFrac i)
+        swapMVar finalAngle $ (45*(realToFrac i))+360
         a <- takeMVar currentAngle
-        putMVar currentAngle (a `mod'` (2*pi))
+        putMVar currentAngle (a `mod'` 360)
 
         timeoutAdd (do widgetQueueDraw frame
                        c <- readMVar currentAngle
@@ -66,46 +71,42 @@ makeCompassWidget = do
   widgetShowAll exp
   return exp
 
-drawCanvasBackground :: WidgetClass widget => widget -> Render ()
-drawCanvasBackground canvas = do
+drawCanvasBackground :: WidgetClass widget => widget -> Surface -> Render ()
+drawCanvasBackground canvas img = do
+  imgWidth <- imageSurfaceGetWidth img
+  imgHeight <- imageSurfaceGetHeight img 
+
   width' <- liftIO $ widgetGetAllocatedWidth canvas
   height' <- liftIO $ widgetGetAllocatedHeight canvas
   let width = realToFrac width'
       height = realToFrac height'
-      outerRadius = 65 
-      innerRadius = 60
+  
 
-  setSourceRGB 0.98 0.95 0.85 --White
-  arc (width/2) (height/2) innerRadius 0 (2*pi)
-  fill
-
-  setSourceRGB 0.6 0.6 0.5    --Grey
-  setLineWidth 15
-  arc ((width/2)+3) ((height/2)+3) (outerRadius-1) 0 (2*pi)
-  stroke
-
-  setSourceRGB 1.0 0.84 0     --Gold
-  setLineWidth 15
-  arc (width/2) (height/2) outerRadius 0 (2*pi)
-  --fill
-  stroke
-
-drawCanvasForeground :: WidgetClass widget => widget -> MVar Double -> Render ()
-drawCanvasForeground canvas angle' = do
-  width' <- liftIO $ widgetGetAllocatedWidth canvas
-  height' <- liftIO $ widgetGetAllocatedHeight canvas
+  save
+  scale (width/fromIntegral imgWidth) (height/fromIntegral imgHeight)
+  setSourceSurface img 0 0
+  paint
+  restore
+  
+drawCanvasForeground :: WidgetClass widget => widget -> MVar Double -> Surface -> Render ()
+drawCanvasForeground canvas angle' img = do
   angle <- liftIO $ takeMVar angle'
+
+  imgWidth <- imageSurfaceGetWidth img
+  imgHeight <- imageSurfaceGetHeight img
+
+  width' <- liftIO $ widgetGetAllocatedWidth canvas
+  height' <- liftIO $ widgetGetAllocatedHeight canvas
   let width = realToFrac width'
       height = realToFrac height'
-      radius = 50
+  
+  save
+  translate (width/2) (height/2)
+  rotate (angle*pi/180)
+  translate ((width/2)*(-1)) ((height/2)*(-1))
+  scale (width/fromIntegral imgWidth) (height/fromIntegral imgHeight)
+  setSourceSurface img 1 0
+  paint
+  restore
 
-  setSourceRGB 1 0 0          --Red
-  setLineWidth 3
-  setLineCap LineCapRound
-  setLineJoin LineJoinRound
-
-  moveTo (width/2) (height/2)
-  lineTo ((width/2) + (radius * sin angle)) ((height/2) + (radius * cos angle))
-  stroke
-
-  liftIO $ putMVar angle' (angle+0.1)
+  liftIO $ putMVar angle' (angle+6)

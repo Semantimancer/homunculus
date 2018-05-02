@@ -142,7 +142,7 @@ aboutWindow = do
   dialog <- aboutDialogNew
 
   set dialog  [ aboutDialogProgramName := "Your Helpful Homunculus"
-              , aboutDialogVersion := "v1.0.4"
+              , aboutDialogVersion := "v1.0.5"
               , aboutDialogWebsite := "http://github.com/Semantimancer/homunculus"
               , aboutDialogWebsiteLabel := "Your Helpful Homunculus GitHub"
               , aboutDialogAuthors := ["Ben Kugler (ben@bkugler.com)"]
